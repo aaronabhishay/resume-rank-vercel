@@ -25,6 +25,89 @@ const runMiddleware = (req, res, fn) => {
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyDI9q8l80wS6-eZ1APIF9B3ohRmeXEZyrE";
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
+// Function to extract Google Drive folder ID from a shared link
+const extractFolderId = (url) => {
+  try {
+    const folderPattern = /\/folders\/([a-zA-Z0-9_-]+)/;
+    const match = url.match(folderPattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+    
+    // Alternative format
+    const altPattern = /id=([a-zA-Z0-9_-]+)/;
+    const altMatch = url.match(altPattern);
+    if (altMatch && altMatch[1]) {
+      return altMatch[1];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Error extracting folder ID:", error);
+    return null;
+  }
+};
+
+// Function to get resume files from Google Drive
+const getResumesFromDrive = async (folderId) => {
+  // Mock implementation since we may not have Google Drive API set up
+  console.log("Getting resumes from Drive folder:", folderId);
+  
+  // If you have Google Drive API set up, uncomment and use this:
+  /*
+  if (!drive) {
+    throw new Error('Google Drive API not initialized');
+  }
+  const response = await drive.files.list({
+    q: `'${folderId}' in parents and mimeType='application/pdf'`,
+    fields: 'files(id, name)',
+  });
+  return response.data.files;
+  */
+  
+  // For now, return mock files to test the flow
+  return [
+    { id: 'file1', name: 'John Doe.pdf' },
+    { id: 'file2', name: 'Jane Smith.pdf' },
+    { id: 'file3', name: 'Alice Johnson.pdf' },
+  ];
+};
+
+// Function to download and parse a resume PDF
+const downloadAndParseResume = async (fileId) => {
+  // Mock implementation
+  console.log("Downloading and parsing resume:", fileId);
+  
+  // Mock resume content based on fileId
+  const mockResumes = {
+    'file1': `John Doe
+              Software Engineer
+              Experience: 
+              - Senior Developer at Tech Co (2018-present)
+              - Web Developer at StartUp Inc (2015-2018)
+              Skills: JavaScript, React, Node.js, Python
+              Education: BS Computer Science, University of Technology`,
+              
+    'file2': `Jane Smith
+              Data Scientist
+              Experience:
+              - Lead Data Analyst at Big Data Corp (2019-present)
+              - Research Assistant at University Lab (2017-2019)
+              Skills: Python, R, TensorFlow, SQL, Data Visualization
+              Education: MS in Data Science, Analytics University`,
+              
+    'file3': `Alice Johnson
+              Product Manager
+              Experience:
+              - Product Manager at Software Solutions (2020-present)
+              - Business Analyst at Consulting Firm (2016-2020)
+              Skills: Agile methodologies, Product roadmapping, User research
+              Education: MBA with focus on Technology Management, Business School`
+  };
+  
+  return mockResumes[fileId] || `Resume content for ${fileId}`;
+};
+
 // Mock resume analysis function (replace with real implementation)
 async function analyzeResume(resumeText, jobDescription) {
   if (!genAI) {

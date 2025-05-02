@@ -8,6 +8,7 @@ export default function App() {
   const [driveFolderLink, setDriveFolderLink] = useState("");
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleAnalyze = async () => {
     if (!jobDescription || !driveFolderLink) {
@@ -16,8 +17,10 @@ export default function App() {
     }
 
     setLoading(true);
+    setError(null);
+    
     try {
-      // API call to backend
+      // Add useMockData flag for Vercel deployment
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
@@ -26,14 +29,21 @@ export default function App() {
         body: JSON.stringify({
           jobDescription,
           driveFolderLink,
+          useMockData: true // Set to true to use mock data
         }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server responded with status: ${response.status}`);
+      }
+
       const data = await response.json();
+      console.log("API response:", data);
       setResults(data);
     } catch (error) {
       console.error("Error analyzing resumes:", error);
-      alert("Error analyzing resumes. Please try again.");
+      setError(error.message || "Error analyzing resumes. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -64,6 +74,12 @@ export default function App() {
           >
             {loading ? "Analyzing..." : "Analyze Resumes"}
           </button>
+          
+          {error && (
+            <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {error}
+            </div>
+          )}
         </div>
 
         {results && <ResultsDisplay results={results} />}

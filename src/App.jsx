@@ -8,7 +8,6 @@ export default function App() {
   const [driveFolderLink, setDriveFolderLink] = useState("");
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   const handleAnalyze = async () => {
     if (!jobDescription || !driveFolderLink) {
@@ -17,10 +16,8 @@ export default function App() {
     }
 
     setLoading(true);
-    setError(null);
-    
     try {
-      // API call to backend (works both locally and on Vercel)
+      // API call to backend
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
@@ -32,16 +29,11 @@ export default function App() {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to analyze resumes');
-      }
-
       const data = await response.json();
       setResults(data);
     } catch (error) {
       console.error("Error analyzing resumes:", error);
-      setError(error.message || "Error analyzing resumes. Please try again.");
+      alert("Error analyzing resumes. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -72,12 +64,6 @@ export default function App() {
           >
             {loading ? "Analyzing..." : "Analyze Resumes"}
           </button>
-          
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-              <span className="block sm:inline">{error}</span>
-            </div>
-          )}
         </div>
 
         {results && <ResultsDisplay results={results} />}

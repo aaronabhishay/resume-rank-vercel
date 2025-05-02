@@ -1,64 +1,71 @@
-# Resume Rank
+# Resume Ranker
 
-Resume Rank is an AI-powered application that analyzes and ranks resumes against a job description using Google's Gemini AI.
+A web application that scores and ranks resumes based on job descriptions using Gemini AI.
 
 ## Features
 
-- Upload resumes through Google Drive
-- Analyze resumes against job descriptions
-- Score candidates based on skills, experience, education, and project impact
-- Identify strengths and areas for improvement for each candidate
+- Enter job descriptions and Google Drive folder links
+- Analyze resumes against job requirements
+- Score candidates on Skills Match, Experience Relevance, Education Fit, and Project Impact
+- Rank candidates by overall suitability
+- Visual representation of candidate scores
 
-## Technology Stack
+## Running the Application with Mock Data
 
-- Frontend: React with Tailwind CSS
-- Backend: Node.js with Express
-- AI: Google's Gemini 1.5 Flash AI model
-- File Storage: Google Drive API
+If you don't have a valid Gemini API key, you can still run the application with mock data to see how it works:
 
-## Getting Started
+1. **Start the backend server:**
+   ```
+   node server.js
+   ```
 
-### Prerequisites
+2. **Start the frontend development server:**
+   ```
+   npm run client
+   ```
 
-- Node.js (v18 or higher)
-- Google Gemini API key
-- Google Service Account for Drive API access
+3. **Access the application:**
+   - Open your browser and navigate to: http://localhost:5001
+   - Enter any job description and Google Drive link
+   - Click "Analyze Resumes" to see the mock results
 
-### Installation
+The mock data provides sample candidate rankings to demonstrate the application's functionality.
+
+## Setting Up with Gemini API
+
+To use real AI analysis:
+
+1. Get a Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Create a `.env` file in the project root:
+   ```
+   PORT=5000
+   GEMINI_API_KEY=your_api_key_here
+   ```
+3. Update the server code to use the real Gemini API (see GEMINI-GUIDE.md)
+
+## Project Structure
+
+- `src/` - React frontend components and styles
+- `public/` - Static assets
+- `server.js` - Express backend server with Gemini integration
+
+## Tech Stack
+
+- **Frontend:** React, Tailwind CSS
+- **Backend:** Node.js, Express
+- **AI:** Google Gemini API
+- **Build Tools:** Webpack, Babel
+
+## Development
+
+To contribute to this project:
 
 1. Clone the repository
-   ```
-   git clone https://github.com/yourusername/resume-rank.git
-   cd resume-rank
-   ```
+2. Install dependencies: `npm install`
+3. Run in development mode: `npm run dev`
 
-2. Install dependencies
-   ```
-   npm install
-   ```
-
-3. Create a `.env` file in the root directory with the following:
-   ```
-   GEMINI_API_KEY=your-gemini-api-key
-   GOOGLE_SERVICE_ACCOUNT={"type":"service_account","project_id":"your-project-id",...}
-   ```
-
-4. Start the development server
-   ```
-   npm run dev
-   ```
-
-## Usage
-
-1. Enter a job description in the text area
-2. Provide a link to a Google Drive folder containing resumes in PDF format
-3. Click "Analyze Resumes"
-4. Review the ranked results with detailed scores and feedback
-
-## Deployment
-
-This application is configured for easy deployment on Vercel. See [VERCEL-DEPLOYMENT.md](./VERCEL-DEPLOYMENT.md) for detailed instructions.
+Check the GEMINI-GUIDE.md file for detailed information about working with the Gemini API.
 
 ## License
 
-This project is licensed under the ISC License. 
+MIT 

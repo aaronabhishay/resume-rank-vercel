@@ -2,14 +2,13 @@
   "name": "resume-rank",
   "version": "1.0.0",
   "description": "Resume ranking application using React, Tailwind, and Gemini API",
-  "engines": {
-    "node": ">=18.0.0"
-  },
+  "main": "server.js",
   "scripts": {
-    "dev": "webpack serve --config webpack.config.js --mode development",
-    "build": "webpack --config webpack.config.js --mode production",
     "start": "node server.js",
-    "vercel-build": "npm run build"
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "nodemon server.js",
+    "client": "webpack serve --config webpack.config.js --mode development",
+    "build": "webpack --config webpack.config.js --mode production"
   },
   "keywords": [],
   "author": "",

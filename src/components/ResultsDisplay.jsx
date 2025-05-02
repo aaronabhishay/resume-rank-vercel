@@ -13,6 +13,7 @@ export default function ResultsDisplay({ results }) {
 
   // Extract candidates from the results object
   const candidates = results.candidates || [];
+  const warning = results.warning;
   
   // Check if there are no candidates
   if (candidates.length === 0) {
@@ -117,6 +118,14 @@ export default function ResultsDisplay({ results }) {
           </button>
         </div>
       </div>
+      
+      {/* Show warning if present */}
+      {warning && (
+        <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded">
+          <p className="font-medium mb-1">Warning</p>
+          <p className="text-sm">{warning}</p>
+        </div>
+      )}
       
       {viewMode === "table" ? (
         <div>

@@ -154,9 +154,13 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Job description is required' });
     }
 
-    if (useMockData) {
-      // Generate mock data for demonstration
-      console.log('Using mock data for analysis');
+    if (!driveFolderLink) {
+      return res.status(400).json({ error: 'Google Drive folder link is required' });
+    }
+
+    // Only use mock data if explicitly requested
+    if (useMockData === true) {
+      console.log('Using mock data for analysis (explicitly requested)');
       const candidates = Array.from({ length: 5 }, (_, i) => ({
         id: `candidate-${i + 1}`,
         name: `Candidate ${i + 1}`,
@@ -166,20 +170,83 @@ module.exports = async (req, res) => {
       return res.status(200).json({ candidates });
     }
     
-    // In a real implementation, you would:
-    // 1. Extract folder ID from driveFolderLink
-    // 2. Fetch resume PDFs from Google Drive
-    // 3. Parse PDF content
-    // 4. Analyze each resume against the job description
-    
-    // For now, return mock data
-    const candidates = Array.from({ length: 5 }, (_, i) => ({
-      id: `candidate-${i + 1}`,
-      name: `Candidate ${i + 1}`,
-      ...generateMockAnalysis()
-    }));
-    
-    res.status(200).json({ candidates });
+    try {
+      // Extract the folder ID from the link
+      const folderId = await extractFolderId(driveFolderLink);
+      if (!folderId) {
+        return res.status(400).json({ 
+          error: 'Invalid Google Drive folder link. Make sure it contains "folders/" followed by the folder ID.' 
+        });
+      }
+      
+      // Get all PDF files from the folder
+      const resumeFiles = await getResumesFromDrive(folderId);
+      if (!resumeFiles || resumeFiles.length === 0) {
+        return res.status(404).json({ 
+          error: 'No PDF files found in the specified Google Drive folder.' 
+        });
+      }
+      
+      console.log(`Found ${resumeFiles.length} resume files to analyze`);
+      
+      // Process each resume
+      const candidatesPromises = resumeFiles.map(async (file) => {
+        try {
+          // Download and parse PDF
+          const resumeText = await downloadAndParseResume(file.id);
+          
+          // Analyze the resume text
+          const analysis = await analyzeResume(resumeText, jobDescription);
+          
+          return {
+            id: file.id,
+            name: file.name.replace('.pdf', ''),
+            ...analysis
+          };
+        } catch (error) {
+          console.error(`Error processing resume ${file.name}:`, error);
+          return {
+            id: file.id,
+            name: file.name.replace('.pdf', ''),
+            error: true,
+            message: error.message
+          };
+        }
+      });
+      
+      const candidates = await Promise.all(candidatesPromises);
+      
+      // Sort candidates by total score (descending)
+      candidates.sort((a, b) => {
+        if (a.error) return 1;  // Put errors at the end
+        if (b.error) return -1;
+        return b.totalScore - a.totalScore;
+      });
+      
+      res.status(200).json({ candidates });
+    } catch (error) {
+      console.error('Error processing resumes:', error);
+      
+      // If a critical error occurs, fall back to mock data but with an error message
+      if (error.message.includes('Google Drive API not initialized') || 
+          error.message.includes('Failed to extract JSON from Gemini response') ||
+          error.message.includes('Gemini API not initialized')) {
+        
+        console.log('API service unavailable, using mock data as fallback');
+        const candidates = Array.from({ length: 5 }, (_, i) => ({
+          id: `candidate-${i + 1}`,
+          name: `Candidate ${i + 1}`,
+          ...generateMockAnalysis()
+        }));
+        
+        return res.status(200).json({ 
+          candidates,
+          warning: `Using mock data due to service limitation: ${error.message}`
+        });
+      }
+      
+      throw error; // Re-throw for other errors
+    }
   } catch (error) {
     console.error('API Error:', error);
     res.status(500).json({ error: error.message || 'Internal server error' });

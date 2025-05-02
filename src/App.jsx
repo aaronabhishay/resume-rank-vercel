@@ -20,7 +20,7 @@ export default function App() {
     setError(null);
     
     try {
-      // Add useMockData flag for Vercel deployment
+      // Use real API data instead of mock data
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
@@ -28,8 +28,7 @@ export default function App() {
         },
         body: JSON.stringify({
           jobDescription,
-          driveFolderLink,
-          useMockData: true // Set to true to use mock data
+          driveFolderLink
         }),
       });
 

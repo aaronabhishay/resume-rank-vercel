@@ -1,60 +1,23 @@
 const cors = require('cors');
+const pdf = require('pdf-parse');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-require('dotenv').config();
+const { google } = require('googleapis');
 
-// CORS middleware
+// Middleware to handle CORS
 const corsMiddleware = cors({
-  origin: '*', // Or specify your frontend domain
+  origin: '*', // Allow all origins for now
   methods: ['POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type']
 });
 
-// Middleware handler
-const runMiddleware = (req, res, fn) => {
-  return new Promise((resolve, reject) => {
-    fn(req, res, (result) => {
-      if (result instanceof Error) {
-        return reject(result);
-      }
-      return resolve(result);
-    });
-  });
-};
+// Helper function to extract folder ID from Drive link
+async function extractFolderId(url) {
+  const match = url.match(/folders\/([a-zA-Z0-9-_]+)/);
+  return match ? match[1] : null;
+}
 
-// Initialize Gemini API
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyDI9q8l80wS6-eZ1APIF9B3ohRmeXEZyrE";
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-
-// Function to extract Google Drive folder ID from a shared link
-const extractFolderId = (url) => {
-  try {
-    const folderPattern = /\/folders\/([a-zA-Z0-9_-]+)/;
-    const match = url.match(folderPattern);
-    if (match && match[1]) {
-      return match[1];
-    }
-    
-    // Alternative format
-    const altPattern = /id=([a-zA-Z0-9_-]+)/;
-    const altMatch = url.match(altPattern);
-    if (altMatch && altMatch[1]) {
-      return altMatch[1];
-    }
-    
-    return null;
-  } catch (error) {
-    console.error("Error extracting folder ID:", error);
-    return null;
-  }
-};
-
-// Function to get resume files from Google Drive
-const getResumesFromDrive = async (folderId) => {
-  // Mock implementation since we may not have Google Drive API set up
-  console.log("Getting resumes from Drive folder:", folderId);
-  
-  // If you have Google Drive API set up, uncomment and use this:
-  /*
+// Helper function to get resumes from Google Drive
+async function getResumesFromDrive(folderId, drive) {
   if (!drive) {
     throw new Error('Google Drive API not initialized');
   }
@@ -63,58 +26,33 @@ const getResumesFromDrive = async (folderId) => {
     fields: 'files(id, name)',
   });
   return response.data.files;
-  */
-  
-  // For now, return mock files to test the flow
-  return [
-    { id: 'file1', name: 'John Doe.pdf' },
-    { id: 'file2', name: 'Jane Smith.pdf' },
-    { id: 'file3', name: 'Alice Johnson.pdf' },
-  ];
-};
+}
 
-// Function to download and parse a resume PDF
-const downloadAndParseResume = async (fileId) => {
-  // Mock implementation
-  console.log("Downloading and parsing resume:", fileId);
-  
-  // Mock resume content based on fileId
-  const mockResumes = {
-    'file1': `John Doe
-              Software Engineer
-              Experience: 
-              - Senior Developer at Tech Co (2018-present)
-              - Web Developer at StartUp Inc (2015-2018)
-              Skills: JavaScript, React, Node.js, Python
-              Education: BS Computer Science, University of Technology`,
-              
-    'file2': `Jane Smith
-              Data Scientist
-              Experience:
-              - Lead Data Analyst at Big Data Corp (2019-present)
-              - Research Assistant at University Lab (2017-2019)
-              Skills: Python, R, TensorFlow, SQL, Data Visualization
-              Education: MS in Data Science, Analytics University`,
-              
-    'file3': `Alice Johnson
-              Product Manager
-              Experience:
-              - Product Manager at Software Solutions (2020-present)
-              - Business Analyst at Consulting Firm (2016-2020)
-              Skills: Agile methodologies, Product roadmapping, User research
-              Education: MBA with focus on Technology Management, Business School`
-  };
-  
-  return mockResumes[fileId] || `Resume content for ${fileId}`;
-};
+// Helper function to download and parse resume from Drive
+async function downloadAndParseResume(fileId, drive) {
+  if (!drive) {
+    throw new Error('Google Drive API not initialized');
+  }
+  try {
+    const response = await drive.files.get(
+      { fileId, alt: 'media' },
+      { responseType: 'arraybuffer' }
+    );
+    
+    const buffer = Buffer.from(response.data);
+    const data = await pdf(buffer);
+    return data.text;
+  } catch (error) {
+    console.error(`Error parsing PDF for file ${fileId}:`, error);
+    throw new Error('Failed to parse PDF');
+  }
+}
 
-// Mock resume analysis function (replace with real implementation)
-async function analyzeResume(resumeText, jobDescription) {
+// Helper function to analyze resume using Gemini API
+async function analyzeResume(resumeText, jobDescription, genAI) {
   if (!genAI) {
     throw new Error('Gemini API not initialized');
   }
-  
-  console.log('Creating Gemini 1.5 Flash model...');
   
   // Create the Gemini 1.5 Flash model with optimal configuration
   const model = genAI.getGenerativeModel({ 
@@ -183,155 +121,120 @@ async function analyzeResume(resumeText, jobDescription) {
     if (firstBrace !== -1 && lastBrace !== -1) {
       cleanedText = cleanedText.substring(firstBrace, lastBrace + 1);
     } else {
-      throw new Error('Failed to extract JSON from Gemini response');
+      throw new Error('Failed to extract JSON from Gemini response - no valid JSON structure found');
     }
     
-    return JSON.parse(cleanedText);
+    try {
+      const parsedJson = JSON.parse(cleanedText);
+      return parsedJson;
+    } catch (parseError) {
+      throw new Error(`Failed to parse Gemini API response as JSON: ${parseError.message}`);
+    }
   } catch (error) {
-    console.error('Error analyzing resume:', error);
     throw error;
   }
 }
 
-// For mock data
-function generateMockAnalysis() {
-  return {
-    skillsMatch: Math.floor(Math.random() * 10) + 1,
-    experienceRelevance: Math.floor(Math.random() * 10) + 1,
-    educationFit: Math.floor(Math.random() * 10) + 1,
-    projectImpact: Math.floor(Math.random() * 10) + 1,
-    keyStrengths: [
-      "Strong technical background in required technologies",
-      "Relevant industry experience",
-      "Demonstrated leadership abilities"
-    ],
-    areasForImprovement: [
-      "Could benefit from more experience with specific tools",
-      "Limited international work experience",
-      "Few examples of quantifiable achievements"
-    ],
-    totalScore: Math.floor(Math.random() * 100) + 1,
-    analysis: "This candidate shows promise but has some areas for growth..."
-  };
-}
-
+// Main handler for the serverless function
 module.exports = async (req, res) => {
-  // Handle CORS preflight requests
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    await runMiddleware(req, res, corsMiddleware);
-    return res.status(200).end();
+    return corsMiddleware(req, res, () => {
+      res.status(200).end();
+    });
   }
 
-  // Apply CORS middleware
-  await runMiddleware(req, res, corsMiddleware);
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  try {
-    const { jobDescription, driveFolderLink, useMockData } = req.body;
-    
-    // Validate request data
-    if (!jobDescription) {
-      return res.status(400).json({ error: 'Job description is required' });
-    }
-
-    if (!driveFolderLink) {
-      return res.status(400).json({ error: 'Google Drive folder link is required' });
-    }
-
-    // Only use mock data if explicitly requested
-    if (useMockData === true) {
-      console.log('Using mock data for analysis (explicitly requested)');
-      const candidates = Array.from({ length: 5 }, (_, i) => ({
-        id: `candidate-${i + 1}`,
-        name: `Candidate ${i + 1}`,
-        ...generateMockAnalysis()
-      }));
-      
-      return res.status(200).json({ candidates });
+  // Apply CORS for regular requests
+  return corsMiddleware(req, res, async () => {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' });
     }
     
     try {
-      // Extract the folder ID from the link
+      const { jobDescription, driveFolderLink } = req.body;
+
+      if (!jobDescription || !driveFolderLink) {
+        return res.status(400).json({ error: 'Missing required fields: jobDescription and driveFolderLink' });
+      }
+
+      // Get API keys from environment variables
+      const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+      const GOOGLE_SERVICE_ACCOUNT = process.env.GOOGLE_SERVICE_ACCOUNT;
+
+      if (!GEMINI_API_KEY) {
+        return res.status(500).json({ error: 'Gemini API key not configured' });
+      }
+
+      if (!GOOGLE_SERVICE_ACCOUNT) {
+        return res.status(500).json({ error: 'Google Service Account not configured' });
+      }
+
+      // Initialize Gemini API
+      const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+
+      // Initialize Google Drive API
+      let drive;
+      try {
+        drive = google.drive({
+          version: 'v3',
+          auth: new google.auth.GoogleAuth({
+            credentials: JSON.parse(GOOGLE_SERVICE_ACCOUNT || '{}'),
+            scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+          }),
+        });
+      } catch (error) {
+        return res.status(500).json({ error: 'Failed to initialize Google Drive API: ' + error.message });
+      }
+      
+      // Process the drive folder link to get folder ID
       const folderId = await extractFolderId(driveFolderLink);
       if (!folderId) {
-        return res.status(400).json({ 
-          error: 'Invalid Google Drive folder link. Make sure it contains "folders/" followed by the folder ID.' 
-        });
+        return res.status(400).json({ error: 'Invalid Google Drive folder link' });
       }
       
-      // Get all PDF files from the folder
-      const resumeFiles = await getResumesFromDrive(folderId);
-      if (!resumeFiles || resumeFiles.length === 0) {
-        return res.status(404).json({ 
-          error: 'No PDF files found in the specified Google Drive folder.' 
-        });
-      }
+      // Get the PDF files from the folder
+      const files = await getResumesFromDrive(folderId, drive);
       
-      console.log(`Found ${resumeFiles.length} resume files to analyze`);
+      if (files.length === 0) {
+        return res.status(404).json({ error: 'No PDF files found in the specified folder' });
+      }
       
       // Process each resume
-      const candidatesPromises = resumeFiles.map(async (file) => {
+      const results = [];
+      for (const file of files) {
         try {
-          // Download and parse PDF
-          const resumeText = await downloadAndParseResume(file.id);
+          // Parse the resume
+          const resumeText = await downloadAndParseResume(file.id, drive);
           
-          // Analyze the resume text
-          const analysis = await analyzeResume(resumeText, jobDescription);
+          // Analyze the resume
+          const analysis = await analyzeResume(resumeText, jobDescription, genAI);
           
-          return {
-            id: file.id,
-            name: file.name.replace('.pdf', ''),
+          // Add to results
+          results.push({
+            fileName: file.name,
             ...analysis
-          };
+          });
         } catch (error) {
-          console.error(`Error processing resume ${file.name}:`, error);
-          return {
-            id: file.id,
-            name: file.name.replace('.pdf', ''),
-            error: true,
-            message: error.message
-          };
+          console.error(`Error processing file ${file.name}:`, error);
+          results.push({
+            fileName: file.name,
+            error: error.message || 'Unknown error',
+            success: false
+          });
         }
-      });
+      }
       
-      const candidates = await Promise.all(candidatesPromises);
-      
-      // Sort candidates by total score (descending)
-      candidates.sort((a, b) => {
-        if (a.error) return 1;  // Put errors at the end
-        if (b.error) return -1;
+      // Sort results by score (highest first)
+      results.sort((a, b) => {
+        if (a.totalScore === undefined) return 1;
+        if (b.totalScore === undefined) return -1;
         return b.totalScore - a.totalScore;
       });
       
-      res.status(200).json({ candidates });
+      return res.status(200).json(results);
     } catch (error) {
-      console.error('Error processing resumes:', error);
-      
-      // If a critical error occurs, fall back to mock data but with an error message
-      if (error.message.includes('Google Drive API not initialized') || 
-          error.message.includes('Failed to extract JSON from Gemini response') ||
-          error.message.includes('Gemini API not initialized')) {
-        
-        console.log('API service unavailable, using mock data as fallback');
-        const candidates = Array.from({ length: 5 }, (_, i) => ({
-          id: `candidate-${i + 1}`,
-          name: `Candidate ${i + 1}`,
-          ...generateMockAnalysis()
-        }));
-        
-        return res.status(200).json({ 
-          candidates,
-          warning: `Using mock data due to service limitation: ${error.message}`
-        });
-      }
-      
-      throw error; // Re-throw for other errors
+      console.error('API error:', error);
+      return res.status(500).json({ error: error.message || 'Internal server error' });
     }
-  } catch (error) {
-    console.error('API Error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
-  }
+  });
 }; 

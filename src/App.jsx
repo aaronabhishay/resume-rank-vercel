@@ -20,7 +20,7 @@ export default function App() {
     setError(null);
     
     try {
-      // Use real API data instead of mock data
+      // API call to backend (works both locally and on Vercel)
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
@@ -28,17 +28,16 @@ export default function App() {
         },
         body: JSON.stringify({
           jobDescription,
-          driveFolderLink
+          driveFolderLink,
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server responded with status: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to analyze resumes');
       }
 
       const data = await response.json();
-      console.log("API response:", data);
       setResults(data);
     } catch (error) {
       console.error("Error analyzing resumes:", error);
@@ -75,8 +74,8 @@ export default function App() {
           </button>
           
           {error && (
-            <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-              {error}
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+              <span className="block sm:inline">{error}</span>
             </div>
           )}
         </div>

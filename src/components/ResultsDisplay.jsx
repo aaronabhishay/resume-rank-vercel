@@ -4,27 +4,6 @@ export default function ResultsDisplay({ results }) {
   const [viewMode, setViewMode] = useState("table"); // "table" or "cards"
   const [showSummary, setShowSummary] = useState(false);
   
-  console.log("Results in component:", results);
-  
-  // Check if results is undefined or null
-  if (!results) {
-    return null;
-  }
-
-  // Extract candidates from the results object
-  const candidates = results.candidates || [];
-  const warning = results.warning;
-  
-  // Check if there are no candidates
-  if (candidates.length === 0) {
-    return (
-      <div className="mt-8 bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">No Results</h2>
-        <p className="text-gray-600">No candidate data available to display.</p>
-      </div>
-    );
-  }
-  
   // Check if results is an error object
   if (results && results.error) {
     return (
@@ -42,10 +21,10 @@ export default function ResultsDisplay({ results }) {
   
   // Generate comparative summary
   const generateSummary = () => {
-    if (!candidates || candidates.length === 0) return null;
+    if (!results || results.length === 0) return null;
     
     // Filter out error results
-    const validResults = candidates.filter(r => !r.error);
+    const validResults = results.filter(r => !r.error);
     
     if (validResults.length === 0) return null;
     
@@ -119,14 +98,6 @@ export default function ResultsDisplay({ results }) {
         </div>
       </div>
       
-      {/* Show warning if present */}
-      {warning && (
-        <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded">
-          <p className="font-medium mb-1">Warning</p>
-          <p className="text-sm">{warning}</p>
-        </div>
-      )}
-      
       {viewMode === "table" ? (
         <div>
           <table className="min-w-full divide-y divide-gray-200">
@@ -156,7 +127,7 @@ export default function ResultsDisplay({ results }) {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {candidates.map((candidate, index) => (
+              {results.map((candidate, index) => (
                 <tr key={index} className={candidate.error ? "bg-red-50" : index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-start">
@@ -212,7 +183,7 @@ export default function ResultsDisplay({ results }) {
         </div>
       ) : (
         <div className="space-y-6">
-          {candidates.map((candidate, index) => (
+          {results.map((candidate, index) => (
             <div
               id={`candidate-${index}`}
               key={index}

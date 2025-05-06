@@ -46,7 +46,13 @@ if (supabaseUrl && supabaseKey) {
 }
 
 const app = express();
-app.use(cors());
+// Update CORS configuration to allow requests from frontend domain
+app.use(cors({
+  origin: ['https://resume-rank-fontend.onrender.com', 'http://localhost:3000', 'http://localhost:5001'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // Initialize Google Drive API (if credentials available)
@@ -359,7 +365,11 @@ app.post('/api/analyze', async (req, res) => {
 
 // Add a test endpoint
 app.get('/api/test', (req, res) => {
-  res.json({ status: 'API is working!' });
+  res.json({ 
+    status: 'API is working!',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 const PORT = process.env.PORT || 5000;

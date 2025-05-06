@@ -3,6 +3,13 @@ import JobDescriptionInput from "./components/JobDescriptionInput";
 import DriveFolderInput from "./components/DriveFolderInput";
 import ResultsDisplay from "./components/ResultsDisplay";
 
+// Dynamically determine backend URL based on environment
+const BACKEND_URL = window.location.hostname === 'localhost' 
+  ? 'http://localhost:5000'  // Local backend always on 5000
+  : 'https://resume-rank.onrender.com';  // Production
+
+console.log('Using backend URL:', BACKEND_URL);
+
 export default function App() {
   const [jobDescription, setJobDescription] = useState("");
   const [driveFolderLink, setDriveFolderLink] = useState("");
@@ -17,8 +24,8 @@ export default function App() {
 
     setLoading(true);
     try {
-      // API call to backend
-      const response = await fetch("/api/analyze", {
+      // API call to backend with absolute URL
+      const response = await fetch(`${BACKEND_URL}/api/analyze`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

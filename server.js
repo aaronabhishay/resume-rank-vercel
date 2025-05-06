@@ -1,11 +1,48 @@
 const express = require('express');
 const cors = require('cors');
 const pdf = require('pdf-parse');
+const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
 // Check for required environment variables
 if (!process.env.GEMINI_API_KEY || !process.env.GOOGLE_SERVICE_ACCOUNT) {
   console.warn('Warning: Missing required environment variables. API functionality may be limited.');
+}
+
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+let supabase;
+
+// Debug log for environment variables
+console.log('SUPABASE_URL:', supabaseUrl ? 'Found (value hidden)' : 'Not found');
+console.log('SUPABASE_ANON_KEY:', supabaseKey ? 'Found (value hidden)' : 'Not found');
+
+if (supabaseUrl && supabaseKey) {
+  try {
+    console.log('Initializing Supabase client...');
+    supabase = createClient(supabaseUrl, supabaseKey);
+    console.log('Supabase client initialized successfully');
+    
+    // Test Supabase connection
+    supabase.from('resume_analyses').select('id').limit(1)
+      .then(({ data, error }) => {
+        if (error) {
+          if (error.code === '42P01') {
+            console.error('Error: The resume_analyses table does not exist in Supabase.');
+            console.error('Please create the table using the SQL in supabase_schema.sql');
+          } else {
+            console.error('Error connecting to Supabase:', error);
+          }
+        } else {
+          console.log('Successfully connected to Supabase resume_analyses table');
+        }
+      });
+  } catch (error) {
+    console.error('Failed to initialize Supabase client:', error);
+  }
+} else {
+  console.warn('Warning: Missing Supabase environment variables. Database functionality will not work.');
 }
 
 const app = express();
@@ -199,88 +236,124 @@ app.post('/api/analyze', async (req, res) => {
     // Use the real Gemini API since we have a working key
     console.log('Gemini API is available, using it for analysis');
     
-    const results = [];
-    
-    try {
-      // Extract folder ID from the Drive link
-      const folderId = await extractFolderId(driveFolderLink);
-      if (!folderId) {
-        throw new Error('Invalid Google Drive folder link');
-      }
-      
-      console.log('Extracted folder ID:', folderId);
-      
-      // Get list of resume PDFs from the Drive folder
-      const files = await getResumesFromDrive(folderId);
-      console.log(`Found ${files.length} files in Drive folder`);
-      
-      if (files.length === 0) {
-        throw new Error('No PDF files found in the specified Drive folder');
-      }
-      
-      // Process each resume
-      for (const file of files) {
-        try {
-          console.log(`Processing resume: ${file.name}`);
-          
-          // Extract text from the PDF
-          const resumeText = await downloadAndParseResume(file.id);
-          
-          // Extract email from filename or default to a placeholder
-          const emailMatch = file.name.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
-          const email = emailMatch ? emailMatch[1] : 'email@example.com';
-          
-          // Extract name from filename (remove extension and use as name)
-          const name = file.name.replace(/\.[^/.]+$/, "");
-          
-          console.log(`Analyzing resume for ${name}...`);
-          
-          // Analyze the resume using Gemini API
-          const analysis = await analyzeResume(resumeText, jobDescription);
-          console.log(`Analysis complete for ${name}`);
-          
-          results.push({
-            name,
-            email,
-            ...analysis
-          });
-        } catch (error) {
-          console.error(`Error processing resume ${file.name}:`, error);
-          
-          // Return the actual error with detailed information
-          results.push({
-            name: file.name.replace(/\.[^/.]+$/, ""),
-            email: 'error@example.com',
-            error: true,
-            message: error.message,
-            stack: process.env.NODE_ENV === 'production' ? null : error.stack,
-            analysis: `ERROR: ${error.message}`
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error accessing Drive folder:', error);
-      throw new Error(`Failed to access Drive folder: ${error.message}`);
+    const folderId = await extractFolderId(driveFolderLink);
+    if (!folderId) {
+      throw new Error('Invalid Drive folder link');
     }
-
-    // Sort results by totalScore in descending order (errors at the bottom)
+    
+    let resumes = [];
+    try {
+      resumes = await getResumesFromDrive(folderId);
+      console.log(`Found ${resumes.length} resumes in the folder`);
+    } catch (error) {
+      console.error('Error getting resumes from Drive:', error);
+      throw new Error('Error accessing Google Drive: ' + error.message);
+    }
+    
+    if (resumes.length === 0) {
+      throw new Error('No PDF resumes found in the Drive folder');
+    }
+    
+    console.log(`Analyzing ${resumes.length} resumes...`);
+    
+    const analysisPromises = resumes.map(async (file) => {
+      try {
+        console.log(`Processing resume: ${file.name}`);
+        const resumeText = await downloadAndParseResume(file.id);
+        
+        // Analyze the resume against the job description
+        console.log(`Analyzing resume: ${file.name}`);
+        const analysis = await analyzeResume(resumeText, jobDescription);
+        
+        // Store the analysis result in Supabase
+        if (supabase) {
+          try {
+            const timestamp = new Date().toISOString();
+            
+            // Prepare the record data
+            const recordData = {
+              job_description: jobDescription,
+              resume_name: file.name,
+              resume_id: file.id,
+              skills_match: analysis.skillsMatch,
+              experience_relevance: analysis.experienceRelevance,
+              education_fit: analysis.educationFit,
+              project_impact: analysis.projectImpact,
+              key_strengths: analysis.keyStrengths,
+              areas_for_improvement: analysis.areasForImprovement,
+              total_score: analysis.totalScore,
+              analysis_text: analysis.analysis,
+              created_at: timestamp
+            };
+            
+            console.log('Attempting to store record in Supabase...');
+            
+            // Try to insert the record with clear error logging
+            const { data, error } = await supabase
+              .from('resume_analyses')
+              .insert([recordData]);
+            
+            if (error) {
+              console.error('Supabase insertion error code:', error.code);
+              console.error('Supabase insertion error message:', error.message);
+              
+              if (error.code === '42501') {
+                console.error('RLS Policy Error: You need to update the Row Level Security policy in Supabase');
+                console.error('Go to Supabase dashboard > Authentication > Policies and either:');
+                console.error('1. Disable RLS for the resume_analyses table (for development) OR');
+                console.error('2. Create a policy that allows inserts without authentication');
+              }
+              
+              analysis.stored = false;
+              analysis.storeError = error.message;
+            } else {
+              console.log('Analysis stored in Supabase successfully');
+              analysis.stored = true;
+            }
+          } catch (dbError) {
+            console.error('Error with Supabase operation:', dbError);
+            analysis.stored = false;
+            analysis.storeError = dbError.message;
+          }
+        }
+        
+        return {
+          fileName: file.name,
+          fileId: file.id,
+          analysis
+        };
+      } catch (error) {
+        console.error(`Error processing resume ${file.name}:`, error);
+        return {
+          fileName: file.name,
+          fileId: file.id,
+          error: error.message
+        };
+      }
+    });
+    
+    // Wait for all analyses to complete
+    const results = await Promise.all(analysisPromises);
+    
+    // Sort results by totalScore (descending)
     results.sort((a, b) => {
-      if (a.error && !b.error) return 1;
-      if (!a.error && b.error) return -1;
-      return b.totalScore - a.totalScore;
+      // Check if both have valid analysis and scores
+      if (a.analysis?.totalScore !== undefined && b.analysis?.totalScore !== undefined) {
+        return b.analysis.totalScore - a.analysis.totalScore;
+      } else if (a.analysis?.totalScore !== undefined) {
+        return -1; // a has score, b doesn't - a comes first
+      } else if (b.analysis?.totalScore !== undefined) {
+        return 1;  // b has score, a doesn't - b comes first
+      }
+      // Both have errors or no score, keep original order
+      return 0;
     });
     
-    console.log('Sending results to client');
-    res.json(results);
+    console.log('Analysis complete, sending response');
+    res.json({ results });
   } catch (error) {
-    console.error('Error:', error);
-    
-    // Return the error instead of mock data
-    res.status(500).json({
-      error: true,
-      message: error.message,
-      stack: process.env.NODE_ENV === 'production' ? null : error.stack
-    });
+    console.error('Error in analyze endpoint:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

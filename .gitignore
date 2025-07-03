@@ -30,11 +30,4 @@ yarn-error.log*
 *.swo
 
 # Secrets
-secrets.json
-
-# n8n specific files
-.env.n8n
-.env.n8n.local
-n8n-data/
-*.n8n.backup
-n8n-workflows/*.backup 
+secrets.json 

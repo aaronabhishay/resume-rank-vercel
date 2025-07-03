@@ -1,0 +1,302 @@
+{
+  "name": "Resume Rank Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "user-registered",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "User Registration Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "user-registered"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "resume-uploaded",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "2",
+      "name": "Resume Upload Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        500
+      ],
+      "webhookId": "resume-uploaded"
+    },
+    {
+      "parameters": {
+        "url": "https://hooks.slack.com/your-webhook-url",
+        "sendAsUser": "true",
+        "message": "🎉 New user registered!\n\nUser ID: {{$json.userId}}\nEmail: {{$json.email}}\nTimestamp: {{$now}}",
+        "otherOptions": {}
+      },
+      "id": "3",
+      "name": "Notify Slack - New User",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.RESUME_RANK_API_URL}}/analytics/user-events",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "event_type",
+              "value": "user_registered"
+            },
+            {
+              "name": "user_id",
+              "value": "={{$json.userId}}"
+            },
+            {
+              "name": "email",
+              "value": "={{$json.email}}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{$now}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4",
+      "name": "Log to Analytics API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.RESUME_RANK_API_URL}}/resumes/{{$json.resumeId}}/process",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "auto_process",
+              "value": "true"
+            },
+            {
+              "name": "notify_user",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5",
+      "name": "Trigger Resume Processing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        460,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "6",
+      "name": "Weekly Job Alerts (Mondays 9AM)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        240,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.RESUME_RANK_API_URL}}/jobs/send-weekly-alerts",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "force_send",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7",
+      "name": "Send Weekly Job Alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        460,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "User registration processed successfully"
+      },
+      "id": "8",
+      "name": "Registration Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Resume upload processed successfully"
+      },
+      "id": "9",
+      "name": "Upload Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        680,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.RESUME_RANK_API_URL}}/users/{{$json.userId}}/send-welcome-email",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "template",
+              "value": "welcome_automation"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "10",
+      "name": "Send Welcome Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        460,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "User Registration Webhook": {
+      "main": [
+        [
+          {
+            "node": "Send Welcome Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Slack - New User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resume Upload Webhook": {
+      "main": [
+        [
+          {
+            "node": "Trigger Resume Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Slack - New User": {
+      "main": [
+        [
+          {
+            "node": "Log to Analytics API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Analytics API": {
+      "main": [
+        [
+          {
+            "node": "Registration Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Resume Processing": {
+      "main": [
+        [
+          {
+            "node": "Upload Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Job Alerts (Mondays 9AM)": {
+      "main": [
+        [
+          {
+            "node": "Send Weekly Job Alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Welcome Email": {
+      "main": [
+        [
+          {
+            "node": "Notify Slack - New User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1"
+} 

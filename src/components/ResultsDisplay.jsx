@@ -845,19 +845,19 @@ The Hiring Team
                     ) : (
                       <>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{candidate.analysis.skillsMatch}/10</div>
+                          <div className="text-sm text-gray-900">{candidate.skillsMatch}/10</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{candidate.analysis.experienceRelevance}/10</div>
+                          <div className="text-sm text-gray-900">{candidate.experienceRelevance}/10</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{candidate.analysis.educationFit}/10</div>
+                          <div className="text-sm text-gray-900">{candidate.educationFit}/10</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{candidate.analysis.projectImpact}/10</div>
+                          <div className="text-sm text-gray-900">{candidate.projectImpact}/10</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{candidate.analysis.totalScore}/100</div>
+                          <div className="text-sm font-medium text-gray-900">{candidate.totalScore}/100</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <button
@@ -937,55 +937,55 @@ The Hiring Team
                     <div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Skills Match</span>
-                        <span className="text-gray-900">{candidate.analysis.skillsMatch}/10</span>
+                        <span className="text-gray-900">{candidate.skillsMatch}/10</span>
                       </div>
                       <div className="mt-1 w-full bg-gray-200 rounded-full h-2">
                         <div
                           className="bg-black h-2 rounded-full"
-                          style={{ width: `${(candidate.analysis.skillsMatch / 10) * 100}%` }}
+                          style={{ width: `${(candidate.skillsMatch / 10) * 100}%` }}
                         />
                       </div>
                     </div>
                     <div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Experience</span>
-                        <span className="text-gray-900">{candidate.analysis.experienceRelevance}/10</span>
+                        <span className="text-gray-900">{candidate.experienceRelevance}/10</span>
                       </div>
                       <div className="mt-1 w-full bg-gray-200 rounded-full h-2">
                         <div
                           className="bg-black h-2 rounded-full"
-                          style={{ width: `${(candidate.analysis.experienceRelevance / 10) * 100}%` }}
+                          style={{ width: `${(candidate.experienceRelevance / 10) * 100}%` }}
                         />
                       </div>
                     </div>
                     <div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Education</span>
-                        <span className="text-gray-900">{candidate.analysis.educationFit}/10</span>
+                        <span className="text-gray-900">{candidate.educationFit}/10</span>
                       </div>
                       <div className="mt-1 w-full bg-gray-200 rounded-full h-2">
                         <div
                           className="bg-black h-2 rounded-full"
-                          style={{ width: `${(candidate.analysis.educationFit / 10) * 100}%` }}
+                          style={{ width: `${(candidate.educationFit / 10) * 100}%` }}
                         />
                       </div>
                     </div>
                     <div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Projects</span>
-                        <span className="text-gray-900">{candidate.analysis.projectImpact}/10</span>
+                        <span className="text-gray-900">{candidate.projectImpact}/10</span>
                       </div>
                       <div className="mt-1 w-full bg-gray-200 rounded-full h-2">
                         <div
                           className="bg-black h-2 rounded-full"
-                          style={{ width: `${(candidate.analysis.projectImpact / 10) * 100}%` }}
+                          style={{ width: `${(candidate.projectImpact / 10) * 100}%` }}
                         />
                       </div>
                     </div>
                     <div className="pt-4 border-t border-gray-200">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium text-gray-900">Overall Score</span>
-                        <span className="text-lg font-bold text-black">{candidate.analysis.totalScore}</span>
+                        <span className="text-lg font-bold text-black">{candidate.totalScore}</span>
                       </div>
                     </div>
                   </div>

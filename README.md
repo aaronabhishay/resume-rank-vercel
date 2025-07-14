@@ -66,6 +66,27 @@ To contribute to this project:
 
 Check the GEMINI-GUIDE.md file for detailed information about working with the Gemini API.
 
+## Deployment
+
+### Vercel Deployment
+
+This application is configured for deployment on Vercel. See [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) for detailed deployment instructions.
+
+Quick deployment steps:
+1. Push your code to a Git repository
+2. Connect your repository to Vercel
+3. Set up environment variables in Vercel dashboard
+4. Deploy
+
+### Local Development
+
+To run the application locally:
+
+1. Install dependencies: `npm install`
+2. Set up environment variables in a `.env` file
+3. Run development server: `npm run dev`
+4. Access at: http://localhost:5001
+
 ## License
 
 MIT 

@@ -9,10 +9,10 @@ import JobDescriptionInput from "./components/JobDescriptionInput";
 import DriveFolderInput from "./components/DriveFolderInput";
 import ResultsDisplay from "./components/ResultsDisplay";
 
-// Dynamically determine backend URL based on environment
+// For Vercel deployment, API calls will be relative to the same domain
 const BACKEND_URL = window.location.hostname === 'localhost' 
-  ? 'http://localhost:5000'  // Local backend always on 5000
-  : 'https://resume-rank.onrender.com';  // Production
+  ? 'http://localhost:5000'  // Local development
+  : '';  // Production - use relative URLs for same-domain API calls
 
 console.log('Using backend URL:', BACKEND_URL);
 
@@ -143,14 +143,12 @@ export default function App() {
     setTimeout(async () => {
       setLoading(true);
       try {
-        const response = await fetch(`${BACKEND_URL}/api/analyze`, {
+        const response = await fetch(`${BACKEND_URL}/api/analyze-resumes`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
+            folderUrl: driveFolderLink,
             jobDescription, 
-            driveFolderLink,
-            experienceLevel,
-            scoringLogic,
             weights
           }),
         });

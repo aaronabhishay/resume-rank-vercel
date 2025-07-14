@@ -1,13 +1,17 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-module.exports = {
-  entry: './src/index.jsx',
-  output: {
-    path: path.resolve(__dirname, 'dist'),
-    filename: 'bundle.js',
-    clean: true,
-  },
+module.exports = (env, argv) => {
+  const isProduction = argv.mode === 'production';
+  
+  return {
+    entry: './src/index.jsx',
+    output: {
+      path: path.resolve(__dirname, 'dist'),
+      filename: isProduction ? '[name].[contenthash].js' : 'bundle.js',
+      clean: true,
+      publicPath: '/',
+    },
   resolve: {
     extensions: ['.js', '.jsx'],
   },
@@ -34,16 +38,18 @@ module.exports = {
       template: './public/index.html',
     }),
   ],
-  devServer: {
-    static: {
-      directory: path.join(__dirname, 'public'),
+    devServer: {
+      static: {
+        directory: path.join(__dirname, 'public'),
+      },
+      port: 5001,
+      hot: true,
+      open: true,
+      proxy: {
+        '/api': 'http://localhost:5000'
+      },
+      historyApiFallback: true,
     },
-    port: 5001,
-    hot: true,
-    open: true,
-    proxy: {
-      '/api': 'http://localhost:5000'
-    }
-  },
-  mode: 'development',
+    mode: isProduction ? 'production' : 'development',
+  };
 }; 

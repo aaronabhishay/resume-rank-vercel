@@ -320,7 +320,7 @@ export default function App() {
             ) : results ? (
               <Card className="w-[1400px] px-4 py-6 md:px-6 md:py-8">
                 <CardContent>
-                  <ResultsDisplay results={results} jobTitle={jobTitle} canSave={canSave} />
+                  <ResultsDisplay results={results?.results || []} jobTitle={jobTitle} canSave={canSave} />
                 </CardContent>
               </Card>
             ) : (

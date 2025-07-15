@@ -384,7 +384,7 @@ export default function ResultsDisplay({ results, jobTitle, canSave = true }) {
   });
   
   // Extract results array from the response object
-  const resultsArray = results?.results || [];
+  const resultsArray = results || [];
   
   // Check if results is an error object
   if (results && results.error) {
@@ -401,7 +401,7 @@ export default function ResultsDisplay({ results, jobTitle, canSave = true }) {
     if (!resultsArray || resultsArray.length === 0) return null;
     
     // Filter out error results
-    const validResults = resultsArray.filter(r => r.analysis);
+    const validResults = resultsArray.filter(r => r.skillsMatch !== undefined);
     
     if (validResults.length === 0) return null;
     
@@ -409,37 +409,37 @@ export default function ResultsDisplay({ results, jobTitle, canSave = true }) {
     const topCandidate = validResults[0]; // Already sorted by totalScore
     
     // Find average scores
-    const avgSkills = validResults.reduce((sum, r) => sum + r.analysis.skillsMatch, 0) / validResults.length;
-    const avgExperience = validResults.reduce((sum, r) => sum + r.analysis.experienceRelevance, 0) / validResults.length;
-    const avgEducation = validResults.reduce((sum, r) => sum + r.analysis.educationFit, 0) / validResults.length;
-    const avgProject = validResults.reduce((sum, r) => sum + r.analysis.projectImpact, 0) / validResults.length;
-    const avgTotal = validResults.reduce((sum, r) => sum + r.analysis.totalScore, 0) / validResults.length;
+    const avgSkills = validResults.reduce((sum, r) => sum + r.skillsMatch, 0) / validResults.length;
+    const avgExperience = validResults.reduce((sum, r) => sum + r.experienceRelevance, 0) / validResults.length;
+    const avgEducation = validResults.reduce((sum, r) => sum + r.educationFit, 0) / validResults.length;
+    const avgProject = validResults.reduce((sum, r) => sum + r.projectImpact, 0) / validResults.length;
+    const avgTotal = validResults.reduce((sum, r) => sum + r.totalScore, 0) / validResults.length;
     
     return {
       topCandidate: topCandidate.fileName,
-      topScore: topCandidate.analysis.totalScore,
+      topScore: topCandidate.totalScore,
       averageScore: avgTotal.toFixed(1),
       candidateCount: validResults.length,
-      topStrengths: topCandidate.analysis.keyStrengths,
+      topStrengths: topCandidate.keyStrengths,
       comparisons: [
         {
           category: "Skills Match",
-          topScore: topCandidate.analysis.skillsMatch,
+          topScore: topCandidate.skillsMatch,
           avgScore: avgSkills.toFixed(1),
         },
         {
           category: "Experience",
-          topScore: topCandidate.analysis.experienceRelevance,
+          topScore: topCandidate.experienceRelevance,
           avgScore: avgExperience.toFixed(1),
         },
         {
           category: "Education",
-          topScore: topCandidate.analysis.educationFit,
+          topScore: topCandidate.educationFit,
           avgScore: avgEducation.toFixed(1),
         },
         {
           category: "Project Impact",
-          topScore: topCandidate.analysis.projectImpact,
+          topScore: topCandidate.projectImpact,
           avgScore: avgProject.toFixed(1),
         }
       ]
@@ -481,7 +481,7 @@ export default function ResultsDisplay({ results, jobTitle, canSave = true }) {
       const events = candidates.map((candidate, index) => {
         const interviewStart = new Date(startTime.getTime() + (index * interviewDuration));
         const interviewEnd = new Date(interviewStart.getTime() + interviewDuration);
-        const candidateName = candidate.analysis?.candidateName || candidate.fileName;
+        const candidateName = candidate.candidateName || candidate.fileName;
         return {
           title: `${scheduleData.interviewTitle} with ${candidateName}`,
           description: `${scheduleData.interviewDescription}\n\nInterviewer: ${scheduleData.interviewerName} (${scheduleData.interviewerEmail})\nCandidate: ${candidateName}`,
@@ -491,7 +491,7 @@ export default function ResultsDisplay({ results, jobTitle, canSave = true }) {
           endTimeLocal: interviewEnd.toLocaleString(),
           attendees: [
             scheduleData.interviewerEmail,
-            candidate.analysis?.email
+            candidate.email
           ].filter(email => email && email !== 'No email found'),
           fileName: candidate.fileName,
           candidateName
@@ -629,15 +629,15 @@ The Hiring Team
   const handleExportXLSX = () => {
     const exportData = resultsArray.map((candidate, idx) => ({
       "#": idx + 1,
-      "Candidate": candidate.analysis?.candidateName || candidate.fileName,
-      "Email": candidate.analysis?.email || "",
-      "Skills": candidate.analysis?.skillsMatch ?? "",
-      "Experience": candidate.analysis?.experienceRelevance ?? "",
-      "Education": candidate.analysis?.educationFit ?? "",
-      "Projects": candidate.analysis?.projectImpact ?? "",
-      "Overall": candidate.analysis?.totalScore ?? "",
-      "Key Strengths": candidate.analysis?.keyStrengths?.join("; ") ?? "",
-      "Areas for Improvement": candidate.analysis?.areasForImprovement?.join("; ") ?? "",
+      "Candidate": candidate.candidateName || candidate.fileName,
+      "Email": candidate.email || "",
+      "Skills": candidate.skillsMatch ?? "",
+      "Experience": candidate.experienceRelevance ?? "",
+      "Education": candidate.educationFit ?? "",
+      "Projects": candidate.projectImpact ?? "",
+      "Overall": candidate.totalScore ?? "",
+      "Key Strengths": candidate.keyStrengths?.join("; ") ?? "",
+      "Areas for Improvement": candidate.areasForImprovement?.join("; ") ?? "",
     }));
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
@@ -839,7 +839,7 @@ The Hiring Team
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {candidate.analysis?.candidateName || candidate.fileName}
+                        {candidate.candidateName || candidate.fileName}
                       </div>
                     </td>
                     {candidate.error ? (
@@ -900,7 +900,7 @@ The Hiring Team
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-lg font-medium text-gray-900">
-                      {candidate.analysis?.candidateName || candidate.fileName}
+                      {candidate.candidateName || candidate.fileName}
                     </h3>
                     <StatusBadge status={getCandidateStatus(candidate)} />
                   </div>
@@ -919,16 +919,16 @@ The Hiring Team
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <h4 className="text-sm font-medium text-gray-900 mb-2">Overview</h4>
                       <div className="space-y-2">
-                        {candidate.analysis?.email && (
+                        {candidate.email && (
                           <p className="text-sm text-gray-600">
-                            <span className="font-medium">Email:</span> {candidate.analysis.email}
+                            <span className="font-medium">Email:</span> {candidate.email}
                           </p>
                         )}
-                        {candidate.analysis?.keyStrengths && candidate.analysis.keyStrengths.length > 0 && (
+                        {candidate.keyStrengths && candidate.keyStrengths.length > 0 && (
                           <div>
                             <p className="text-sm font-medium text-gray-900">Key Strengths:</p>
                             <ul className="list-disc list-inside text-sm text-gray-600">
-                              {candidate.analysis.keyStrengths.slice(0, 2).map((strength, i) => (
+                              {candidate.keyStrengths.slice(0, 2).map((strength, i) => (
                                 <li key={i}>{strength}</li>
                               ))}
                             </ul>
@@ -1028,11 +1028,11 @@ The Hiring Team
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Profile</h3>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">Name:</span> {selectedCandidate.analysis?.candidateName || selectedCandidate.fileName}
+                    <span className="font-medium">Name:</span> {selectedCandidate.candidateName || selectedCandidate.fileName}
                   </p>
-                  {selectedCandidate.analysis?.email && (
+                  {selectedCandidate.email && (
                     <p className="text-sm text-gray-600">
-                      <span className="font-medium">Email:</span> {selectedCandidate.analysis.email}
+                      <span className="font-medium">Email:</span> {selectedCandidate.email}
                     </p>
                   )}
                 </div>
@@ -1040,7 +1040,7 @@ The Hiring Team
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Key Strengths</h3>
                 <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
-                  {selectedCandidate.analysis?.keyStrengths.map((strength, i) => (
+                  {selectedCandidate.keyStrengths.map((strength, i) => (
                     <li key={i}>{strength}</li>
                   ))}
                 </ul>
@@ -1048,7 +1048,7 @@ The Hiring Team
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Areas for Improvement</h3>
                 <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
-                  {selectedCandidate.analysis?.areasForImprovement.map((area, i) => (
+                  {selectedCandidate.areasForImprovement.map((area, i) => (
                     <li key={i}>{area}</li>
                   ))}
                 </ul>
@@ -1057,7 +1057,7 @@ The Hiring Team
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Detailed Analysis</h3>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-600 whitespace-pre-line">
-                    {selectedCandidate.analysis?.analysis}
+                    {selectedCandidate.analysis}
                   </p>
                 </div>
               </div>

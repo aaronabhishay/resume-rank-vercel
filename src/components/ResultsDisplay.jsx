@@ -349,6 +349,10 @@ function RejectionEmailsModal({ isOpen, onClose, unselectedCandidates, onStatusU
 }
 
 export default function ResultsDisplay({ results, jobTitle, canSave = true }) {
+  console.log('ResultsDisplay received results:', results);
+  console.log('Results type:', typeof results);
+  console.log('Results length:', results?.length);
+  console.log('First result:', results?.[0]);
   const [viewMode, setViewMode] = useState("table");
   const [showSummary, setShowSummary] = useState(false);
   const [selectedCandidates, setSelectedCandidates] = useState([]);

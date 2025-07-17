@@ -443,24 +443,71 @@ app.post('/api/save-job', async (req, res) => {
   }
 });
 
-// Placeholder endpoints for n8n integration (these would need to be implemented separately)
+// n8n integration endpoints
 app.post('/api/n8n/create-calendar-events', async (req, res) => {
   try {
-    // This would integrate with n8n workflow for calendar events
-    res.json({ success: true, message: 'Calendar events creation endpoint' });
+    const { events } = req.body;
+    console.log('Events being sent to n8n:', JSON.stringify(events, null, 2));
+    
+    if (!process.env.N8N_CALENDAR_WEBHOOK_URL) {
+      throw new Error('N8N_CALENDAR_WEBHOOK_URL not configured');
+    }
+    
+    // Call n8n webhook for calendar events
+    const response = await fetch(process.env.N8N_CALENDAR_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ events }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`n8n webhook failed: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    res.json(result);
   } catch (error) {
     console.error('Error creating calendar events:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: error.message,
+      details: 'Failed to communicate with n8n workflow'
+    });
   }
 });
 
 app.post('/api/n8n/send-rejection-emails', async (req, res) => {
   try {
-    // This would integrate with n8n workflow for sending rejection emails
-    res.json({ success: true, message: 'Rejection emails endpoint' });
+    const { recipients, subject, body } = req.body;
+    
+    if (!process.env.N8N_EMAIL_WEBHOOK_URL) {
+      throw new Error('N8N_EMAIL_WEBHOOK_URL not configured');
+    }
+    
+    // Call n8n webhook for sending emails
+    const response = await fetch(process.env.N8N_EMAIL_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ recipients, subject, body }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`n8n webhook failed: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    res.json(result);
   } catch (error) {
     console.error('Error sending rejection emails:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: error.message,
+      details: 'Failed to communicate with n8n workflow'
+    });
   }
 });
 

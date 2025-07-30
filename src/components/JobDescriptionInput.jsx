@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "./ui/select";
+import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
 
 const JOB_ROLES = {
   "Data Scientist": `Data Scientist
@@ -55,8 +58,8 @@ export default function JobDescriptionInput({ value, onChange }) {
     }
   }, []);
 
-  const handleRoleChange = (e) => {
-    const role = e.target.value;
+  // Fix: Radix Select passes value directly, not event
+  const handleRoleChange = (role) => {
     setSelectedRole(role);
     onChange({ target: { value: JOB_ROLES[role] } });
   };
@@ -81,47 +84,46 @@ export default function JobDescriptionInput({ value, onChange }) {
             type="radio"
             checked={useTemplate}
             onChange={() => handleModeChange(true)}
-            className="form-radio h-4 w-4 text-black focus:ring-black"
+            className="form-radio h-4 w-4 text-primary focus:ring-primary border-border"
           />
-          <span className="ml-2 text-sm font-medium text-gray-700">Use Template</span>
+          <span className="ml-2 text-sm font-medium text-foreground">Use Template</span>
         </label>
         <label className="inline-flex items-center">
           <input
             type="radio"
             checked={!useTemplate}
             onChange={() => handleModeChange(false)}
-            className="form-radio h-4 w-4 text-black focus:ring-black"
+            className="form-radio h-4 w-4 text-primary focus:ring-primary border-border"
           />
-          <span className="ml-2 text-sm font-medium text-gray-700">Custom Job Description</span>
+          <span className="ml-2 text-sm font-medium text-foreground">Custom Job Description</span>
         </label>
       </div>
 
       {useTemplate ? (
         <div className="space-y-2">
-          <select
-            value={selectedRole}
-            onChange={handleRoleChange}
-            className="w-full px-3 py-2 text-sm border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-          >
+          <Select value={selectedRole} onValueChange={handleRoleChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a role..." />
+            </SelectTrigger>
+            <SelectContent>
             {Object.keys(JOB_ROLES).map(role => (
-              <option key={role} value={role}>{role}</option>
+                <SelectItem key={role} value={role}>{role}</SelectItem>
             ))}
-          </select>
-          <textarea
+            </SelectContent>
+          </Select>
+          <Textarea
             value={value}
             onChange={onChange}
             placeholder="Select a role to see the template..."
-            className="w-full min-h-[150px] px-3 py-2 text-sm border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
             readOnly={useTemplate}
           />
         </div>
       ) : (
         <div className="space-y-2">
-          <textarea
+          <Textarea
             value={value}
             onChange={onChange}
             placeholder="Enter your custom job description here..."
-            className="w-full min-h-[150px] px-3 py-2 text-sm border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
           />
           <p className="text-xs text-gray-500">
             Include key responsibilities, required skills, and qualifications

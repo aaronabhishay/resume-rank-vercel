@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FolderGit2, Link } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "../components/ui/select";
+import { Input } from "./ui/input";
 
 export default function DriveFolderInput({ value, onChange, onInputModeChange }) {
   const [folders, setFolders] = useState([]);
@@ -73,15 +74,15 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
   return (
     <div className="space-y-3 w-full">
       {/* Input Mode Tabs */}
-      <div className="flex border rounded-md overflow-hidden">
+      <div className="flex border border-border rounded-md overflow-hidden bg-background">
         <button
           type="button"
           onClick={() => handleInputModeChange("dropdown")}
-          className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
-            inputMode === "dropdown"
-              ? "bg-blue-50 text-blue-700 border-r border-gray-200"
-              : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-          }`}
+          className={`flex-1 px-3 py-2 text-sm font-medium transition-colors border-r border-border
+            ${inputMode === "dropdown"
+              ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary border-r border-primary"
+              : "bg-background text-muted-foreground hover:bg-muted dark:bg-background dark:text-muted-foreground dark:hover:bg-muted"}
+          `}
         >
           <FolderGit2 className="inline-block w-4 h-4 mr-2" />
           Select from folders
@@ -89,11 +90,11 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
         <button
           type="button"
           onClick={() => handleInputModeChange("custom")}
-          className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
-            inputMode === "custom"
-              ? "bg-blue-50 text-blue-700 border-l border-gray-200"
-              : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-          }`}
+          className={`flex-1 px-3 py-2 text-sm font-medium transition-colors border-l border-border
+            ${inputMode === "custom"
+              ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary border-l border-primary"
+              : "bg-background text-muted-foreground hover:bg-muted dark:bg-background dark:text-muted-foreground dark:hover:bg-muted"}
+          `}
         >
           <Link className="inline-block w-4 h-4 mr-2" />
           Custom link
@@ -105,16 +106,16 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
         <div className="space-y-2">
           <div className="relative flex-1">
             <FolderGit2 className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-            <select
-              className="w-full border rounded-md p-2 pl-9"
-              value={selectedFolderId}
-              onChange={e => handleFolderChange(e.target.value)}
-            >
-              <option value="">Select a folder...</option>
+            <Select value={selectedFolderId} onValueChange={handleFolderChange}>
+              <SelectTrigger className="pl-9">
+                <SelectValue placeholder="Select a folder..." />
+              </SelectTrigger>
+              <SelectContent>
               {folders.map(folder => (
-                <option key={folder.id} value={folder.id}>{folder.name}</option>
+                  <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
               ))}
-            </select>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       )}
@@ -124,10 +125,10 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
         <div className="space-y-2">
           <div className="relative flex-1">
             <Link className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-            <input
+            <Input
               type="url"
               placeholder="https://drive.google.com/drive/folders/your-folder-id"
-              className="w-full border rounded-md p-2 pl-9"
+              className="pl-9"
               value={customLink}
               onChange={(e) => handleCustomLinkChange(e.target.value)}
             />
@@ -137,7 +138,10 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
 
       <p className="text-xs text-gray-500 flex items-center gap-1">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-        Make sure the folder is shared with the service account email
+        {localStorage.getItem('google_access_token') 
+          ? "Connected to Google Drive - any folder will work automatically"
+          : "Make sure the folder is shared with the service account email"
+        }
       </p>
     </div>
   );

@@ -8,6 +8,45 @@ import { Badge } from "./components/ui/badge";
 import JobDescriptionInput from "./components/JobDescriptionInput";
 import DriveFolderInput from "./components/DriveFolderInput";
 import ResultsDisplay from "./components/ResultsDisplay";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import LandingPage from "./LandingPage";
+import DashboardPage from "./DashboardPage";
+import AnalysisPage from "./AnalysisPage";
+import SavedJobsPage from "./SavedJobsPage";
+import AuthPage from "./components/Auth/AuthPage";
+import { supabase } from "./supabaseClient";
+
+function ProtectedRoute({ children }) {
+  const [user, setUser] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const location = useLocation();
+
+  React.useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+      setLoading(false);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => {
+      listener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  
+  // Check if this is an OAuth callback
+  const urlParams = new URLSearchParams(location.search);
+  const isOAuthCallback = urlParams.get('access_token') || urlParams.get('oauth_success');
+  
+  if (!user && !isOAuthCallback) {
+    // Redirect to sign-in, preserving the intended destination
+    return <Navigate to={`/auth?view=sign-in&redirect=${encodeURIComponent(location.pathname)}`} replace />;
+  }
+  
+  return children;
+}
 
 // Dynamically determine backend URL based on environment
 const BACKEND_URL = window.location.hostname === 'localhost' 
@@ -62,364 +101,14 @@ Requirements:
 };
 
 export default function App() {
-  const [jobDescription, setJobDescription] = useState("");
-  const [driveFolderLink, setDriveFolderLink] = useState("");
-  const [driveFolderId, setDriveFolderId] = useState("");
-  const [inputMode, setInputMode] = useState("dropdown");
-  const [experienceLevel, setExperienceLevel] = useState("mid");
-  const [jobTitle, setJobTitle] = useState("");
-  const [results, setResults] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [tab, setTab] = useState("job-analysis");
-  const [showSavedJobs, setShowSavedJobs] = useState(false);
-  const [savedJobs, setSavedJobs] = useState([]);
-  const [savedJobsLoading, setSavedJobsLoading] = useState(false);
-  const [savedJobsError, setSavedJobsError] = useState("");
-  const [showScoringModal, setShowScoringModal] = useState(false);
-  const [scoringLogic, setScoringLogic] = useState("Standard scoring based on skills, experience, education, and project impact.");
-  const [weights, setWeights] = useState({
-    skills: 0.35,
-    experience: 0.35,
-    education: 0.15,
-    projects: 0.15
-  });
-  const [canSave, setCanSave] = useState(false);
-
-  const fetchSavedJobs = async () => {
-    setSavedJobsLoading(true);
-    setSavedJobsError("");
-    try {
-      const response = await fetch("/api/saved-jobs");
-      const data = await response.json();
-      if (data.jobs) {
-        setSavedJobs(data.jobs);
-      } else {
-        setSavedJobsError(data.error || "Failed to fetch saved jobs");
-      }
-    } catch (err) {
-      setSavedJobsError("Failed to fetch saved jobs");
-    } finally {
-      setSavedJobsLoading(false);
-    }
-  };
-
-  const handleOpenSavedJobs = () => {
-    setShowSavedJobs(true);
-    fetchSavedJobs();
-  };
-
-  const handleLoadSavedJob = async (id) => {
-    setSavedJobsLoading(true);
-    setSavedJobsError("");
-    try {
-      const response = await fetch(`/api/saved-jobs/${id}`);
-      const data = await response.json();
-      if (data.job && data.job.results) {
-        setResults(data.job.results);
-        setJobDescription(data.job.job_description);
-        setJobTitle(data.job.job_title || "Job Title");
-        setTab("candidate-results");
-        setShowSavedJobs(false);
-        setCanSave(false);
-      } else {
-        setSavedJobsError(data.error || "Failed to load job");
-      }
-    } catch (err) {
-      setSavedJobsError("Failed to load job");
-    } finally {
-      setSavedJobsLoading(false);
-    }
-  };
-
-  const handleAnalyze = async () => {
-    if (!jobDescription || !driveFolderLink || !experienceLevel) {
-      alert("Please provide all required information");
-      return;
-    }
-    setTab("candidate-results");
-    setJobTitle(jobDescription.split('\n')[0] || "Job Title");
-    setCanSave(true);
-    setTimeout(async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/analyze`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            jobDescription, 
-            driveFolderLink,
-            experienceLevel,
-            scoringLogic,
-            weights
-          }),
-        });
-        const data = await response.json();
-        setResults(data);
-      } catch (error) {
-        console.error("Error analyzing resumes:", error);
-        alert("Error analyzing resumes. Please try again.");
-        setTab("job-analysis");
-      } finally {
-        setLoading(false);
-      }
-    }, 0);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
-      <header className="flex items-center h-16 border-b bg-white sticky top-0 z-10 px-4 md:px-6">
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2">
-            <Briefcase className="h-6 w-6 text-black" />
-            <h1 className="text-xl font-bold">Resume Ranker</h1>
-          </div>
-          <div className="flex items-center gap-2 h-full">
-            <Button variant="outline" size="sm" className="hidden md:flex items-center gap-2 h-full flex items-center">
-              <Upload className="h-4 w-4" />
-              Import Resumes
-            </Button>
-            <Button variant="outline" size="sm" className="hidden md:flex items-center gap-2 h-full flex items-center" onClick={handleOpenSavedJobs}>
-              <BookmarkCheck className="h-4 w-4" />
-              Saved Jobs
-            </Button>
-            <Button variant="outline" size="sm" className="flex items-center gap-2 h-full flex items-center">
-              <FileText className="h-4 w-4" />
-              New Job Analysis
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex justify-center py-12">
-        <Tabs defaultValue="job-analysis" className="space-y-6" value={tab} onValueChange={setTab}>
-          <div className="flex justify-between items-center">
-            <TabsList className="w-full flex">
-              <TabsTrigger value="job-analysis" className="gap-2 flex-1">
-                <Briefcase className="h-4 w-4" />
-                Job Analysis
-              </TabsTrigger>
-              <TabsTrigger value="candidate-results" className="gap-2 flex-1">
-                <FileText className="h-4 w-4" />
-                Candidate Results
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
-          <TabsContent value="job-analysis" className="space-y-6">
-            <Card className="w-[1400px] px-4 py-6 md:px-6 md:py-8">
-              <CardHeader className="pb-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-2xl">Analyze New Job</CardTitle>
-                    <CardDescription>Enter job details to find the best matching candidates</CardDescription>
-                  </div>
-                  <Badge variant="outline" className="px-3 py-1">
-                    <span className="text-xs font-medium">Step 1 of 2</span>
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2 flex items-end gap-2">
-                    <div className="flex-1">
-                      <label htmlFor="experience" className="text-sm font-medium">
-                        Experience Level
-                      </label>
-                      <Select value={experienceLevel} onChange={setExperienceLevel}>
-                        <SelectTrigger>
-                          <SelectValue
-                            placeholder="Select experience..."
-                            value={experienceLevel}
-                            options={[
-                              <SelectItem value="entry">Entry Level (0-2 years)</SelectItem>,
-                              <SelectItem value="mid">Mid Level (3-5 years)</SelectItem>,
-                              <SelectItem value="senior">Senior (6+ years)</SelectItem>,
-                            ]}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="entry">Entry Level (0-2 years)</SelectItem>
-                          <SelectItem value="mid">Mid Level (3-5 years)</SelectItem>
-                          <SelectItem value="senior">Senior (6+ years)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <button
-                      type="button"
-                      className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white hover:bg-gray-50 text-gray-700"
-                      onClick={() => setShowScoringModal(true)}
-                    >
-                      Edit Scoring Logic
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="job-description" className="text-sm font-medium">
-                    Job Description
-                  </label>
-                  <JobDescriptionInput
-                    value={jobDescription}
-                    onChange={(e) => setJobDescription(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="drive-link" className="text-sm font-medium">
-                    Google Drive Folder Link
-                  </label>
-                  <DriveFolderInput
-                    value={inputMode === "dropdown" ? driveFolderId : driveFolderLink}
-                    onChange={(value) => {
-                      if (inputMode === "dropdown") {
-                        setDriveFolderId(value);
-                        setDriveFolderLink(`https://drive.google.com/drive/folders/${value}`);
-                      } else {
-                        setDriveFolderLink(value);
-                        // Extract folder ID from the link
-                        const match = value.match(/folders\/([a-zA-Z0-9-_]+)/);
-                        setDriveFolderId(match ? match[1] : "");
-                      }
-                    }}
-                    onInputModeChange={(mode) => {
-                      setInputMode(mode);
-                      // Clear the other input when switching modes
-                      if (mode === "dropdown") {
-                        setDriveFolderLink("");
-                      } else {
-                        setDriveFolderId("");
-                      }
-                    }}
-                  />
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between border-t pt-6">
-                <div className="flex items-center text-sm text-gray-500">
-                  <FileText className="mr-2 h-4 w-4" />
-                  <span>Supported formats: PDF, DOCX, TXT</span>
-                </div>
-                <Button onClick={handleAnalyze} disabled={loading} className="flex items-center gap-2" size="sm">
-                  {loading ? "Analyzing..." : "Analyze Resumes"}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="candidate-results">
-            {loading ? (
-              <Card className="w-[1400px] px-4 py-6 md:px-6 md:py-8">
-                <CardContent>
-                  <div className="flex items-center justify-center h-40">
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
-                      <p className="text-lg font-medium">Analyzing Resumes...</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : results ? (
-              <Card className="w-[1400px] px-4 py-6 md:px-6 md:py-8">
-                <CardContent>
-                  <ResultsDisplay results={results} jobTitle={jobTitle} canSave={canSave} />
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="w-[1400px] px-4 py-6 md:px-6 md:py-8">
-                <CardContent>
-                  <div className="flex items-center justify-center h-40 border rounded-md bg-gray-50">
-                    <p className="text-gray-500">Select a job analysis to view candidates</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
-      </main>
-
-      {/* Saved Jobs Modal */}
-      {showSavedJobs && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Saved Jobs</h2>
-              <button onClick={() => setShowSavedJobs(false)} className="text-gray-500 hover:text-gray-700">&times;</button>
-            </div>
-            {savedJobsLoading ? (
-              <div className="text-gray-600">Loading...</div>
-            ) : savedJobsError ? (
-              <div className="text-red-600 text-sm mb-2">{savedJobsError}</div>
-            ) : savedJobs.length === 0 ? (
-              <div className="text-gray-600">No saved jobs found.</div>
-            ) : (
-              <ul className="divide-y divide-gray-200 max-h-80 overflow-y-auto">
-                {savedJobs.map(job => (
-                  <li key={job.id} className="py-3 flex justify-between items-center">
-                    <div>
-                      <div className="font-medium text-gray-900">{job.job_title}</div>
-                      <div className="text-xs text-gray-500">{new Date(job.created_at).toLocaleString()}</div>
-                    </div>
-                    <button
-                      className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                      onClick={() => handleLoadSavedJob(job.id)}
-                    >
-                      View
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Scoring Logic Modal */}
-      {showScoringModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-lg w-full shadow-lg">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold">Edit Scoring Logic</h2>
-              <button onClick={() => setShowScoringModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-            </div>
-            <div className="mb-4 grid grid-cols-2 gap-2">
-              <label>Skills Weight</label>
-              <input type="number" min="0" max="1" step="0.01" value={weights.skills}
-                onChange={e => setWeights({ ...weights, skills: parseFloat(e.target.value) })} className="border rounded px-2 py-1" />
-              <label>Experience Weight</label>
-              <input type="number" min="0" max="1" step="0.01" value={weights.experience}
-                onChange={e => setWeights({ ...weights, experience: parseFloat(e.target.value) })} className="border rounded px-2 py-1" />
-              <label>Education Weight</label>
-              <input type="number" min="0" max="1" step="0.01" value={weights.education}
-                onChange={e => setWeights({ ...weights, education: parseFloat(e.target.value) })} className="border rounded px-2 py-1" />
-              <label>Projects Weight</label>
-              <input type="number" min="0" max="1" step="0.01" value={weights.projects}
-                onChange={e => setWeights({ ...weights, projects: parseFloat(e.target.value) })} className="border rounded px-2 py-1" />
-            </div>
-            <div className="mb-4 text-sm">Total: {(weights.skills + weights.experience + weights.education + weights.projects).toFixed(2)}</div>
-            <textarea
-              className="w-full border rounded p-3 text-sm font-mono mb-4"
-              rows={8}
-              value={scoringLogic}
-              onChange={e => setScoringLogic(e.target.value)}
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-                onClick={() => setShowScoringModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                onClick={() => setShowScoringModal(false)}
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+      <Route path="/analysis" element={<ProtectedRoute><AnalysisPage /></ProtectedRoute>} />
+      <Route path="/saved-jobs" element={<ProtectedRoute><SavedJobsPage /></ProtectedRoute>} />
+      <Route path="/auth" element={<AuthPage />} />
+      <Route path="*" element={<Navigate to="/" />} />
+    </Routes>
   );
 } 

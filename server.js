@@ -48,7 +48,14 @@ if (supabaseUrl && supabaseKey) {
 const app = express();
 // Update CORS configuration to allow requests from frontend domain
 app.use(cors({
-  origin: ['https://resume-rank-fontend.onrender.com', 'http://localhost:3000', 'http://localhost:5001'],
+  origin: [
+    'https://resume-rank-fontend.onrender.com', 
+    'http://localhost:3000', 
+    'http://localhost:5001',
+    'https://resume-rank.vercel.app',
+    'https://resume-rank-git-main.vercel.app',
+    'https://resume-rank-git-develop.vercel.app'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -57,8 +64,25 @@ app.use(express.json());
 
 // Initialize Google Drive API (if credentials available)
 let drive;
+let oauth2Client;
+
 try {
   const { google } = require('googleapis');
+  
+  // OAuth 2.0 setup for user authentication
+
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/auth/google/callback'
+  );
+  console.log('Google OAuth 2.0 client initialized');
+} else {
+  console.log('Google OAuth 2.0 credentials not found - OAuth authentication will not be available');
+}
+
+  // Initialize Drive API with service account (fallback)
   if (process.env.GOOGLE_SERVICE_ACCOUNT) {
     drive = google.drive({
       version: 'v3',
@@ -72,15 +96,19 @@ try {
   console.error('Error initializing Google Drive API:', error);
 }
 
-// Hard code the API key for testing (better to use env variables in production)
-const GEMINI_API_KEY = "AIzaSyDI9q8l80wS6-eZ1APIF9B3ohRmeXEZyrE";
+// Use environment variable for API key
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-// Initialize Gemini API with the working key
+// Initialize Gemini API
 let genAI;
 try {
-  const { GoogleGenerativeAI } = require('@google/generative-ai');
-  genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-  console.log('Gemini API initialized successfully with direct key');
+  if (GEMINI_API_KEY) {
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
+    genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    console.log('Gemini API initialized successfully');
+  } else {
+    console.warn('Warning: GEMINI_API_KEY not found. Resume analysis will not work.');
+  }
 } catch (error) {
   console.error('Error initializing Gemini API:', error);
 }
@@ -94,23 +122,19 @@ async function extractFolderId(url) {
   return match ? match[1] : null;
 }
 
-async function getResumesFromDrive(folderId) {
-  if (!drive) {
-    throw new Error('Google Drive API not initialized');
-  }
-  const response = await drive.files.list({
+async function getResumesFromDrive(folderId, accessToken = null) {
+  const driveClient = getDriveClient(accessToken);
+  const response = await driveClient.files.list({
     q: `'${folderId}' in parents and mimeType='application/pdf'`,
     fields: 'files(id, name)',
   });
   return response.data.files;
 }
 
-async function downloadAndParseResume(fileId) {
-  if (!drive) {
-    throw new Error('Google Drive API not initialized');
-  }
+async function downloadAndParseResume(fileId, accessToken = null) {
+  const driveClient = getDriveClient(accessToken);
   try {
-    const response = await drive.files.get(
+    const response = await driveClient.files.get(
       { fileId, alt: 'media' },
       { responseType: 'arraybuffer' }
     );
@@ -265,9 +289,10 @@ async function analyzeResume(resumeText, jobDescription, weights) {
 
 app.post('/api/analyze', async (req, res) => {
   try {
-    const { jobDescription, driveFolderLink, experienceLevel, scoringLogic, weights } = req.body;
+    const { jobDescription, driveFolderLink, experienceLevel, scoringLogic, weights, accessToken } = req.body;
     console.log('Received analysis request with job description length:', jobDescription?.length);
     console.log('Drive folder link:', driveFolderLink);
+    console.log('Using OAuth access token:', accessToken ? 'Yes' : 'No');
     
     // Check if Gemini API is initialized
     if (!genAI) {
@@ -284,7 +309,7 @@ app.post('/api/analyze', async (req, res) => {
     
     let resumes = [];
     try {
-      resumes = await getResumesFromDrive(folderId);
+      resumes = await getResumesFromDrive(folderId, accessToken);
       console.log(`Found ${resumes.length} resumes in the folder`);
     } catch (error) {
       console.error('Error getting resumes from Drive:', error);
@@ -300,7 +325,7 @@ app.post('/api/analyze', async (req, res) => {
     const analysisPromises = resumes.map(async (file) => {
       try {
         console.log(`Processing resume: ${file.name}`);
-        const resumeText = await downloadAndParseResume(file.id);
+        const resumeText = await downloadAndParseResume(file.id, accessToken);
         
         // Analyze the resume against the job description
         console.log(`Analyzing resume: ${file.name}`);
@@ -507,6 +532,186 @@ app.get('/api/saved-jobs/:id', async (req, res) => {
   }
 });
 
+// Delete a saved job by ID
+app.delete('/api/saved-jobs/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { error } = await supabase
+      .from('saved_jobs')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    res.json({ success: true, message: 'Job deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Dashboard statistics endpoint
+app.get('/api/dashboard/stats', async (req, res) => {
+  try {
+    console.log('Fetching dashboard stats...');
+    
+    // Get total analyses count from resume_analyses
+    const { count: totalAnalyses, error: countError } = await supabase
+      .from('resume_analyses')
+      .select('*', { count: 'exact', head: true });
+    
+    if (countError) {
+      console.error('Error counting analyses:', countError);
+      throw countError;
+    }
+    
+    console.log('Total analyses count:', totalAnalyses);
+
+    // Get unique candidates count from resume_analyses
+    const { data: candidates, error: candidatesError } = await supabase
+      .from('resume_analyses')
+      .select('resume_id');
+    
+    if (candidatesError) throw candidatesError;
+    
+    const uniqueCandidates = new Set(candidates.map(c => c.resume_id)).size;
+
+    // Get average total score from resume_analyses
+    const { data: scores, error: scoresError } = await supabase
+      .from('resume_analyses')
+      .select('total_score');
+    
+    if (scoresError) throw scoresError;
+    
+    const avgMatchScore = scores.length > 0 
+      ? Math.round((scores.reduce((sum, s) => sum + s.total_score, 0) / scores.length) * 10) / 10
+      : 0;
+
+    // Get active jobs (unique job descriptions) from resume_analyses
+    const { data: jobs, error: jobsError } = await supabase
+      .from('resume_analyses')
+      .select('job_description');
+    
+    if (jobsError) throw jobsError;
+    
+    const uniqueJobs = new Set(jobs.map(j => j.job_description)).size;
+
+    const stats = {
+      totalAnalyses: totalAnalyses || 0,
+      candidatesReviewed: uniqueCandidates,
+      avgMatchScore: avgMatchScore,
+      activeJobs: uniqueJobs
+    };
+    
+    console.log('Dashboard stats:', stats);
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+app.get('/api/dashboard/recent', async (req, res) => {
+  try {
+    console.log('Fetching recent analyses...');
+    
+    // Get recent analyses from resume_analyses table
+    const { data, error } = await supabase
+      .from('resume_analyses')
+      .select('job_description, resume_name, total_score, created_at')
+      .order('created_at', { ascending: false })
+      .limit(50); // Get last 50 analyses to group by job
+
+    if (error) {
+      console.error('Error fetching recent analyses:', error);
+      throw error;
+    }
+    
+    console.log('Raw analyses data count:', data?.length || 0);
+
+    // Group by job description and calculate stats
+    const jobGroups = {};
+    data.forEach(analysis => {
+      if (!jobGroups[analysis.job_description]) {
+        jobGroups[analysis.job_description] = {
+          job_description: analysis.job_description,
+          candidates: [],
+          total_score: 0,
+          count: 0,
+          latest_date: analysis.created_at
+        };
+      }
+      jobGroups[analysis.job_description].candidates.push(analysis.resume_name);
+      jobGroups[analysis.job_description].total_score += analysis.total_score;
+      jobGroups[analysis.job_description].count += 1;
+    });
+
+    // Also get data from saved_jobs table
+    const { data: savedJobs, error: savedJobsError } = await supabase
+      .from('saved_jobs')
+      .select('job_title, results, created_at')
+      .order('created_at', { ascending: false });
+
+    if (!savedJobsError && savedJobs) {
+      savedJobs.forEach(job => {
+        if (job.results && job.results.results) {
+          const candidateCount = job.results.results.length;
+          const scores = job.results.results
+            .filter(r => r.analysis && r.analysis.totalScore)
+            .map(r => r.analysis.totalScore);
+          
+          const avgScore = scores.length > 0 
+            ? scores.reduce((sum, score) => sum + score, 0) / scores.length 
+            : 0;
+
+          jobGroups[job.job_title] = {
+            job_description: job.job_title,
+            candidates: [],
+            total_score: avgScore * candidateCount,
+            count: candidateCount,
+            latest_date: job.created_at
+          };
+        }
+      });
+    }
+
+    // Convert to array and calculate averages
+    const recentAnalyses = Object.values(jobGroups).map(group => ({
+      id: group.job_description.substring(0, 20) + '...', // Use truncated job description as ID
+      title: group.job_description.substring(0, 50) + (group.job_description.length > 50 ? '...' : ''),
+      candidates: group.count,
+      avgScore: Math.round((group.total_score / group.count) * 10) / 10,
+      status: 'completed',
+      date: formatTimeAgo(group.latest_date),
+      rawDate: group.latest_date // Keep original date for sorting
+    }));
+
+    // Sort by latest date and take top 5
+    recentAnalyses.sort((a, b) => {
+      const dateA = new Date(a.rawDate);
+      const dateB = new Date(b.rawDate);
+      return dateB - dateA;
+    });
+    
+    const result = { analyses: recentAnalyses.slice(0, 5) };
+    console.log('Recent analyses result:', result);
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching recent analyses:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper function to format time ago
+function formatTimeAgo(dateString) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInHours = (now - date) / (1000 * 60 * 60);
+  
+  if (diffInHours < 1) return 'Just now';
+  if (diffInHours < 24) return `${Math.floor(diffInHours)} hours ago`;
+  if (diffInHours < 48) return '1 day ago';
+  return `${Math.floor(diffInHours / 24)} days ago`;
+}
+
 // Add new endpoint to fetch subfolders
 app.get('/api/drive-folders', async (req, res) => {
   try {
@@ -526,7 +731,114 @@ app.get('/api/drive-folders', async (req, res) => {
   }
 });
 
+// Google OAuth routes
+app.get('/auth/google', (req, res) => {
+  if (!oauth2Client) {
+    return res.status(500).json({ error: 'Google OAuth is not configured' });
+  }
+  
+  const scopes = [
+    'https://www.googleapis.com/auth/drive.readonly',
+    'https://www.googleapis.com/auth/userinfo.email'
+  ];
+  
+  const authUrl = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: scopes,
+    prompt: 'consent'
+  });
+  
+  res.redirect(authUrl);
+});
+
+app.get('/auth/google/callback', async (req, res) => {
+  if (!oauth2Client) {
+    return res.status(500).json({ error: 'Google OAuth is not configured' });
+  }
+  
+  const { code } = req.query;
+  
+  try {
+    console.log('Processing OAuth callback with code...');
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
+    
+    // Redirect back to frontend with tokens in URL (for demo purposes)
+    // In production, you'd want to store these securely on the server
+    const redirectUrl = `http://localhost:5001/analysis?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token || ''}&oauth_success=true`;
+    res.redirect(redirectUrl);
+  } catch (error) {
+    console.error('Error getting tokens:', error);
+    const errorRedirectUrl = `http://localhost:5001/analysis?error=${encodeURIComponent('Failed to authorize Google Drive access')}`;
+    res.redirect(errorRedirectUrl);
+  }
+});
+
+// Exchange code for tokens (called by frontend)
+app.post('/auth/google/exchange', async (req, res) => {
+  if (!oauth2Client) {
+    return res.status(500).json({ error: 'Google OAuth is not configured' });
+  }
+  
+  const { code } = req.body;
+  
+  if (!code) {
+    return res.status(400).json({ error: 'No authorization code provided' });
+  }
+  
+  try {
+    console.log('Attempting to exchange code for tokens...');
+    const { tokens } = await oauth2Client.getToken(code);
+    console.log('Successfully obtained tokens');
+    
+    oauth2Client.setCredentials(tokens);
+    
+    res.json({ 
+      success: true, 
+      message: 'Google Drive access authorized successfully',
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token
+    });
+  } catch (error) {
+    console.error('Error getting tokens:', error);
+    
+    // Provide more specific error messages
+    if (error.message && error.message.includes('invalid_grant')) {
+      res.status(400).json({ 
+        error: 'Authorization code has expired or already been used. Please try connecting again.' 
+      });
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to authorize Google Drive access: ' + error.message 
+      });
+    }
+  }
+});
+
+// Helper function to get Drive client with user's OAuth tokens
+function getDriveClient(accessToken) {
+  const { google } = require('googleapis');
+  
+  if (accessToken) {
+    // Use user's OAuth tokens
+    oauth2Client.setCredentials({ access_token: accessToken });
+    return google.drive({ version: 'v3', auth: oauth2Client });
+  } else if (drive) {
+    // Fallback to service account
+    return drive;
+  } else {
+    throw new Error('No Google Drive authentication available');
+  }
+}
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-}); 
+
+// Only start the server if we're not in a serverless environment
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+// Export for Vercel serverless functions
+module.exports = app; 

@@ -15,11 +15,13 @@ A web application that scores and ranks resumes based on job descriptions using 
 If you don't have a valid Gemini API key, you can still run the application with mock data to see how it works:
 
 1. **Start the backend server:**
+
    ```
    node server.js
    ```
 
 2. **Start the frontend development server:**
+
    ```
    npm run client
    ```
@@ -66,6 +68,33 @@ To contribute to this project:
 
 Check the GEMINI-GUIDE.md file for detailed information about working with the Gemini API.
 
+## Deployment
+
+### Vercel Deployment
+
+This application is configured for easy deployment on Vercel. See [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) for detailed instructions.
+
+Quick deployment steps:
+
+1. Push your code to GitHub
+2. Connect your repository to Vercel
+3. Set up environment variables in Vercel dashboard
+4. Deploy!
+
+### Environment Variables
+
+Required for deployment:
+
+- `SUPABASE_URL`: Your Supabase project URL
+- `SUPABASE_ANON_KEY`: Your Supabase anonymous key
+- `GEMINI_API_KEY`: Your Google Gemini API key
+
+Optional:
+
+- `GOOGLE_SERVICE_ACCOUNT`: Google service account JSON
+- `GOOGLE_CLIENT_ID`: Google OAuth client ID
+- `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
+
 ## License
 
-MIT 
+MIT

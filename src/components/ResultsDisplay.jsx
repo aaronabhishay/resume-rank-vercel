@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { FaTable, FaThLarge, FaClipboardList, FaCalendarAlt, FaTimesCircle, FaEnvelopeOpenText, FaCircle, FaSave } from 'react-icons/fa';
 import * as XLSX from "xlsx";
+import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
+import { Button } from "./ui/button";
 
 // Add status constants
 const CANDIDATE_STATUS = {
@@ -35,95 +38,91 @@ function SchedulingModal({ isOpen, onClose, selectedCandidates, onSchedule, fiel
       ...fields,
       candidates: selectedCandidates
     });
-    // Optionally reset fields here if you want
-    // setFields({ ...initial values... });
   };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl p-8 max-w-lg w-full shadow-xl">
+      <div className="bg-card rounded-2xl p-8 max-w-lg w-full shadow-xl text-foreground">
         <div className="flex justify-between items-start mb-2">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Schedule Individual Interviews</h2>
-            <p className="text-gray-500 text-sm mt-1">Set up interviews with selected candidates.</p>
+            <h2 className="text-2xl font-bold text-foreground">Schedule Individual Interviews</h2>
+            <p className="text-muted-foreground text-sm mt-1">Set up interviews with selected candidates.</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">
-            &times;
-          </button>
+          <Button onClick={onClose} variant="ghost" size="icon" className="text-muted-foreground text-2xl leading-none">&times;</Button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-6 mt-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Interview Title</label>
-            <input
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Interview Title</label>
+            <Input
               type="text"
               value={fields.interviewTitle}
               onChange={e => handleChange('interviewTitle', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black text-base"
+              className="w-full border border-border bg-background text-foreground focus-visible:ring-primary focus-visible:border-primary rounded-lg px-3 py-2"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Interview Description</label>
-            <textarea
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Interview Description</label>
+            <Textarea
               value={fields.interviewDescription}
               onChange={e => handleChange('interviewDescription', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black text-base"
+              className="w-full border border-border bg-background text-foreground focus-visible:ring-primary focus-visible:border-primary rounded-lg px-3 py-2"
               rows="2"
               placeholder="Add any additional details about the interview..."
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Interviewer Name</label>
-              <input
+              <label className="block text-sm font-medium text-muted-foreground mb-1">Interviewer Name</label>
+              <Input
                 type="text"
                 value={fields.interviewerName}
                 onChange={e => handleChange('interviewerName', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black text-base"
+                className="w-full border border-border bg-background text-foreground focus-visible:ring-primary focus-visible:border-primary rounded-lg px-3 py-2"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Interviewer Email</label>
-              <input
+              <label className="block text-sm font-medium text-muted-foreground mb-1">Interviewer Email</label>
+              <Input
                 type="email"
                 value={fields.interviewerEmail}
                 onChange={e => handleChange('interviewerEmail', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black text-base"
+                className="w-full border border-border bg-background text-foreground focus-visible:ring-primary focus-visible:border-primary rounded-lg px-3 py-2"
                 required
               />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1">Start Date</label>
               <div className="relative">
-                <span className="absolute left-3 top-2.5 text-gray-400">
+                <span className="absolute left-3 top-2.5 text-muted-foreground">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                 </span>
-                <input
+                <Input
                   type="datetime-local"
                   value={fields.startDate}
                   onChange={e => handleChange('startDate', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-10 py-2 focus:outline-none focus:ring-2 focus:ring-black text-base placeholder-gray-400"
+                  className="w-full border border-border bg-background text-foreground focus-visible:ring-primary focus-visible:border-primary rounded-lg px-10 py-2 placeholder-muted-foreground"
                   placeholder="Select date and time"
                   required
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1">End Date</label>
               <div className="relative">
-                <span className="absolute left-3 top-2.5 text-gray-400">
+                <span className="absolute left-3 top-2.5 text-muted-foreground">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                 </span>
-                <input
+                <Input
                   type="datetime-local"
                   value={fields.endDate}
                   onChange={e => handleChange('endDate', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-10 py-2 focus:outline-none focus:ring-2 focus:ring-black text-base placeholder-gray-400"
+                  className="w-full border border-border bg-background text-foreground focus-visible:ring-primary focus-visible:border-primary rounded-lg px-10 py-2 placeholder-muted-foreground"
                   placeholder="Select date and time"
                   required
                 />
@@ -131,11 +130,11 @@ function SchedulingModal({ isOpen, onClose, selectedCandidates, onSchedule, fiel
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Interview Duration (minutes)</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Interview Duration (minutes)</label>
             <select
               value={fields.duration}
               onChange={e => handleChange('duration', Number(e.target.value))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black text-base"
+              className="w-full border border-border bg-background text-foreground focus-visible:ring-primary focus-visible:border-primary rounded-lg px-3 py-2"
             >
               <option value={30}>30 minutes</option>
               <option value={45}>45 minutes</option>
@@ -143,27 +142,29 @@ function SchedulingModal({ isOpen, onClose, selectedCandidates, onSchedule, fiel
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Selected Candidates ({selectedCandidates.length}):</label>
-            <ul className="list-disc list-inside text-gray-900 text-base mt-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Selected Candidates ({selectedCandidates.length}):</label>
+            <ul className="list-disc list-inside text-foreground text-base mt-1">
               {selectedCandidates.map((candidate, index) => (
                 <li key={index}>{candidate.fileName}</li>
               ))}
             </ul>
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button
+            <Button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-100 font-medium"
+              variant="outline"
+              size="sm"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="px-4 py-2 rounded-lg bg-black text-white font-medium hover:bg-gray-900"
+              variant="premium"
+              size="sm"
             >
               Schedule Individual Interviews
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -191,45 +192,41 @@ function CalendarReviewTableModal({ isOpen, onClose, events, setEvents, onAddAll
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-card rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto text-foreground shadow-xl">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Review & Edit Calendar Events</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <h2 className="text-2xl font-bold text-foreground">Review & Edit Calendar Events</h2>
+          <Button onClick={onClose} variant="ghost" size="icon" className="text-muted-foreground">&times;</Button>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 mb-4">
-            <thead className="bg-blue-50">
+          <table className="min-w-full divide-y divide-border mb-4 bg-background rounded-lg">
+            <thead className="bg-muted/40">
               <tr>
-                <th className="px-4 py-2 text-left text-xs font-semibold text-blue-700 uppercase tracking-wider">Candidate</th>
-                <th className="px-4 py-2 text-left text-xs font-semibold text-blue-700 uppercase tracking-wider">Start Time</th>
-                <th className="px-4 py-2 text-left text-xs font-semibold text-blue-700 uppercase tracking-wider">End Time</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-primary uppercase tracking-wider">Candidate</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-primary uppercase tracking-wider">Start Time</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-primary uppercase tracking-wider">End Time</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-100">
+            <tbody>
               {events.map((event, idx) => (
-                <tr key={event.fileName}>
-                  <td className="px-4 py-2 whitespace-nowrap">{event.candidateName || event.fileName}</td>
+                <tr key={event.fileName} className="border-b border-border last:border-0">
+                  <td className="px-4 py-2 whitespace-nowrap text-muted-foreground">{event.candidateName || event.fileName}</td>
                   <td className="px-4 py-2 whitespace-nowrap">
-                    <input
+                    <Input
                       type="datetime-local"
                       value={event.startTime ? formatLocalForInput(event.startTime) : ''}
                       onChange={e => handleTimeChange(idx, 'startTime', e.target.value)}
-                      className="border rounded p-1"
+                      className="border border-border bg-background text-foreground focus-visible:ring-primary focus-visible:border-primary rounded-lg p-1"
                     />
-                    <div className="text-xs text-gray-500 mt-1">{event.startTimeLocal}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{event.startTimeLocal}</div>
                   </td>
                   <td className="px-4 py-2 whitespace-nowrap">
-                    <input
+                    <Input
                       type="datetime-local"
                       value={event.endTime ? formatLocalForInput(event.endTime) : ''}
                       onChange={e => handleTimeChange(idx, 'endTime', e.target.value)}
-                      className="border rounded p-1"
+                      className="border border-border bg-background text-foreground focus-visible:ring-primary focus-visible:border-primary rounded-lg p-1"
                     />
-                    <div className="text-xs text-gray-500 mt-1">{event.endTimeLocal}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{event.endTimeLocal}</div>
                   </td>
                 </tr>
               ))}
@@ -237,19 +234,21 @@ function CalendarReviewTableModal({ isOpen, onClose, events, setEvents, onAddAll
           </table>
         </div>
         <div className="flex justify-end gap-2 mt-4">
-          <button
+          <Button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
+            variant="outline"
+            size="sm"
           >
             Close
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={onAddAll}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            variant="premium"
+            size="sm"
             disabled={loading}
           >
             {loading ? 'Adding...' : 'Add All Events to Calendar'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -326,7 +325,7 @@ function RejectionEmailsModal({ isOpen, onClose, unselectedCandidates, onStatusU
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Email Body</label>
-              <textarea
+              <Textarea
                 value={mailBody}
                 onChange={e => setMailBody(e.target.value)}
                 rows={12}
@@ -642,107 +641,108 @@ The Hiring Team
   };
 
   return (
-    <div className="p-6 relative">
+    <div className="p-6 relative bg-card rounded-2xl">
       {/* Job Title Header and Save Button */}
       {canSave && (
-        <button
-          className="absolute top-0 right-0 mt-4 mr-4 z-10 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 gap-2"
+        <Button
+          className="absolute top-0 right-0 mt-4 mr-4 z-10"
           onClick={() => setShowSaveModal(true)}
+          size="sm"
         >
           <FaSave className="mr-2" />
           Save Results
-        </button>
+        </Button>
       )}
       <div className="mb-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-2">{jobTitle || "Job Title"}</h2>
-        <p className="text-sm text-gray-500 mt-2">Found {resultsArray.length} candidates</p>
+        <h2 className="text-lg font-bold text-foreground mb-2">{jobTitle || "Job Title"}</h2>
+        <p className="text-sm text-muted-foreground mt-2">Found {resultsArray.length} candidates</p>
       </div>
 
       {/* Select Top Candidates Input */}
       <div className="mb-6 flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <input
+          <Input
             type="number"
             min="1"
             max={resultsArray.length}
             value={numCandidatesToSelect}
             onChange={(e) => setNumCandidatesToSelect(e.target.value)}
             placeholder="Number of top candidates"
-            className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+            className="w-48 border border-border bg-background text-foreground focus-visible:ring-primary focus-visible:border-primary rounded-md"
           />
-          <button
+          <Button
             onClick={handleSelectTopCandidates}
-            className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+            className="font-semibold"
+            size="sm"
+            variant="glass"
           >
             Select Top Candidates
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Controls */}
       <div className="flex justify-end items-center mb-6 gap-4">
-        <div className="flex rounded-md shadow-sm">
-          <button
+        <div className="flex rounded-md shadow-sm bg-muted/30">
+          <Button
             onClick={() => handleViewModeChange("table")}
-            className={`relative inline-flex items-center px-4 py-2 rounded-l-md border text-sm font-medium ${
-              viewMode === "table"
-                ? "bg-black border-black text-white"
-                : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
-            }`}
+            className={`rounded-l-md ${viewMode === "table" ? "bg-background text-foreground" : "bg-muted text-muted-foreground"}`}
+            size="sm"
+            variant={viewMode === "table" ? "glass" : "outline"}
           >
             <FaTable className="mr-2" />
             Table
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => handleViewModeChange("cards")}
-            className={`relative inline-flex items-center px-4 py-2 rounded-r-md border text-sm font-medium ${
-              viewMode === "cards"
-                ? "bg-black border-black text-white"
-                : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
-            }`}
+            className={`rounded-r-md ${viewMode === "cards" ? "bg-background text-foreground" : "bg-muted text-muted-foreground"}`}
+            size="sm"
+            variant={viewMode === "cards" ? "glass" : "outline"}
           >
             <FaThLarge className="mr-2" />
             Cards
-          </button>
+          </Button>
         </div>
-        <button
+        <Button
           onClick={() => setShowSummary(!showSummary)}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-100"
+          className="font-semibold"
+          size="sm"
+          variant="outline"
         >
           <FaClipboardList className="mr-2" />
           Summary
-        </button>
+        </Button>
       </div>
 
       {/* Summary Section */}
       {showSummary && summary && (
-        <div className="mb-6 bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Analysis Summary</h3>
+        <div className="mb-6 bg-muted/30 shadow rounded-lg p-6">
+          <h3 className="text-lg font-medium text-foreground mb-4">Analysis Summary</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <h4 className="text-sm font-medium text-gray-500 mb-2">Top Candidate</h4>
-              <p className="text-lg font-medium text-gray-900">{summary.topCandidate}</p>
-              <p className="text-sm text-gray-500">Score: {summary.topScore}/10</p>
+              <h4 className="text-sm font-medium text-muted-foreground mb-2">Top Candidate</h4>
+              <p className="text-lg font-medium text-foreground">{summary.topCandidate}</p>
+              <p className="text-sm text-muted-foreground">Score: {summary.topScore}/10</p>
             </div>
             <div>
-              <h4 className="text-sm font-medium text-gray-500 mb-2">Overall Statistics</h4>
-              <p className="text-sm text-gray-900">Average Score: {summary.averageScore}/10</p>
-              <p className="text-sm text-gray-900">Total Candidates: {summary.candidateCount}</p>
+              <h4 className="text-sm font-medium text-muted-foreground mb-2">Overall Statistics</h4>
+              <p className="text-sm text-foreground">Average Score: {summary.averageScore}/10</p>
+              <p className="text-sm text-foreground">Total Candidates: {summary.candidateCount}</p>
             </div>
             <div className="md:col-span-2">
-              <h4 className="text-sm font-medium text-gray-500 mb-2">Category Comparisons</h4>
+              <h4 className="text-sm font-medium text-muted-foreground mb-2">Category Comparisons</h4>
               <div className="space-y-4">
                 {summary.comparisons.map((comparison, index) => (
-                  <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                  <div key={index} className="bg-background p-4 rounded-lg">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-gray-900">{comparison.category}</span>
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm font-medium text-foreground">{comparison.category}</span>
+                      <span className="text-sm text-muted-foreground">
                         Top: {comparison.topScore}/10 | Avg: {comparison.avgScore}/10
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-muted rounded-full h-2">
                       <div
-                        className="bg-black h-2 rounded-full"
+                        className="bg-primary h-2 rounded-full"
                         style={{ width: `${(comparison.topScore / 10) * 100}%` }}
                       />
                     </div>
@@ -757,130 +757,132 @@ The Hiring Team
       {/* Action Buttons */}
       {selectedCandidates.length > 0 && (
         <div className="mb-6 flex items-center space-x-4">
-          <button
+          <Button
             onClick={() => setShowSchedulingModal(true)}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-900"
           >
             <FaCalendarAlt className="mr-2" />
             Schedule Interviews
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setShowRejectionEmails(true)}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
           >
             <FaEnvelopeOpenText className="mr-2" />
             Send Rejection Emails
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setSelectedCandidates([])}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
           >
             <FaTimesCircle className="mr-2" />
             Clear Selection
-          </button>
+          </Button>
         </div>
       )}
 
       {/* Results Display */}
       {viewMode === "table" ? (
         <>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+          <div className="overflow-x-auto rounded-xl border border-border bg-background">
+            <table className="min-w-full divide-y divide-border bg-background text-foreground">
+              <thead className="bg-muted/40">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">#</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Select
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Status
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Candidate
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Skills
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Experience
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Education
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Projects
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Overall
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody>
                 {resultsArray.map((candidate, index) => (
-                  <tr key={index} className={candidate.error ? "bg-red-50" : index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-500 font-mono">{index + 1}</td>
+                  <tr key={index} className={candidate.error ? "bg-destructive/10" : index % 2 === 0 ? "bg-card" : "bg-muted/30"}>
+                    <td className="px-6 py-4 whitespace-nowrap text-muted-foreground font-mono">{index + 1}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <input
                         type="checkbox"
                         checked={selectedCandidates.some(c => c.fileName === candidate.fileName)}
                         onChange={() => handleCandidateSelect(candidate)}
-                        className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+                        className="h-4 w-4 text-primary focus:ring-primary border-border rounded"
                       />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <StatusBadge status={getCandidateStatus(candidate)} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-foreground">
                         {candidate.analysis?.candidateName || candidate.fileName}
                       </div>
                     </td>
                     {candidate.error ? (
-                      <td colSpan="6" className="px-6 py-4 whitespace-nowrap text-sm text-red-500">
+                      <td colSpan="6" className="px-6 py-4 whitespace-nowrap text-sm text-destructive">
                         {candidate.error}
                       </td>
-                    ) : (
-                      <>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{candidate.analysis.skillsMatch}/10</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{candidate.analysis.experienceRelevance}/10</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{candidate.analysis.educationFit}/10</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{candidate.analysis.projectImpact}/10</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{candidate.analysis.totalScore}/100</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <button
-                            onClick={() => handleViewDetails(candidate)}
-                            className="text-black hover:underline"
-                          >
-                            View Details
-                          </button>
-                        </td>
-                      </>
-                    )}
+                    ) : <>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-foreground">{candidate.analysis.skillsMatch}/10</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-foreground">{candidate.analysis.experienceRelevance}/10</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-foreground">{candidate.analysis.educationFit}/10</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-foreground">{candidate.analysis.projectImpact}/10</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-foreground">{candidate.analysis.totalScore}/100</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                        <Button
+                          onClick={() => handleViewDetails(candidate)}
+                          variant="link"
+                          size="sm"
+                          className="text-primary"
+                        >
+                          View Details
+                        </Button>
+                      </td>
+                    </>}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           <div className="flex justify-end mt-4">
-            <button
+            <Button
               onClick={handleExportXLSX}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              className="font-semibold"
+              size="sm"
+              variant="glass"
             >
               Save as XLSX
-            </button>
+            </Button>
           </div>
         </>
       ) : (
@@ -888,14 +890,12 @@ The Hiring Team
           {resultsArray.map((candidate, index) => (
             <div
               key={index}
-              className={`bg-white overflow-hidden shadow rounded-lg ${
-                candidate.error ? "border border-red-300" : ""
-              }`}
+              className={`bg-card overflow-hidden rounded-lg ${candidate.error ? "border border-destructive/50" : ""}`}
             >
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900">
+                    <h3 className="text-lg font-medium text-foreground">
                       {candidate.analysis?.candidateName || candidate.fileName}
                     </h3>
                     <StatusBadge status={getCandidateStatus(candidate)} />
@@ -904,26 +904,26 @@ The Hiring Team
                     type="checkbox"
                     checked={selectedCandidates.some(c => c.fileName === candidate.fileName)}
                     onChange={() => handleCandidateSelect(candidate)}
-                    className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+                    className="h-4 w-4 text-primary focus:ring-primary border-border rounded"
                   />
                 </div>
                 {candidate.error ? (
-                  <div className="mt-4 text-sm text-red-500">{candidate.error}</div>
-                ) : (
+                  <div className="mt-4 text-sm text-destructive">{candidate.error}</div>
+                ) : <>
                   <div className="space-y-4">
                     {/* Overview Section */}
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">Overview</h4>
+                    <div className="bg-muted/30 p-4 rounded-lg">
+                      <h4 className="text-sm font-medium text-foreground mb-2">Overview</h4>
                       <div className="space-y-2">
                         {candidate.analysis?.email && (
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-muted-foreground">
                             <span className="font-medium">Email:</span> {candidate.analysis.email}
                           </p>
                         )}
                         {candidate.analysis?.keyStrengths && candidate.analysis.keyStrengths.length > 0 && (
                           <div>
-                            <p className="text-sm font-medium text-gray-900">Key Strengths:</p>
-                            <ul className="list-disc list-inside text-sm text-gray-600">
+                            <p className="text-sm font-medium text-foreground">Key Strengths:</p>
+                            <ul className="list-disc list-inside text-sm text-muted-foreground">
                               {candidate.analysis.keyStrengths.slice(0, 2).map((strength, i) => (
                                 <li key={i}>{strength}</li>
                               ))}
@@ -936,68 +936,70 @@ The Hiring Team
                     {/* Scores Section */}
                     <div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Skills Match</span>
-                        <span className="text-gray-900">{candidate.analysis.skillsMatch}/10</span>
+                        <span className="text-muted-foreground">Skills Match</span>
+                        <span className="text-foreground">{candidate.analysis.skillsMatch}/10</span>
                       </div>
-                      <div className="mt-1 w-full bg-gray-200 rounded-full h-2">
+                      <div className="mt-1 w-full bg-muted rounded-full h-2">
                         <div
-                          className="bg-black h-2 rounded-full"
+                          className="bg-primary h-2 rounded-full"
                           style={{ width: `${(candidate.analysis.skillsMatch / 10) * 100}%` }}
                         />
                       </div>
                     </div>
                     <div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Experience</span>
-                        <span className="text-gray-900">{candidate.analysis.experienceRelevance}/10</span>
+                        <span className="text-muted-foreground">Experience</span>
+                        <span className="text-foreground">{candidate.analysis.experienceRelevance}/10</span>
                       </div>
-                      <div className="mt-1 w-full bg-gray-200 rounded-full h-2">
+                      <div className="mt-1 w-full bg-muted rounded-full h-2">
                         <div
-                          className="bg-black h-2 rounded-full"
+                          className="bg-primary h-2 rounded-full"
                           style={{ width: `${(candidate.analysis.experienceRelevance / 10) * 100}%` }}
                         />
                       </div>
                     </div>
                     <div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Education</span>
-                        <span className="text-gray-900">{candidate.analysis.educationFit}/10</span>
+                        <span className="text-muted-foreground">Education</span>
+                        <span className="text-foreground">{candidate.analysis.educationFit}/10</span>
                       </div>
-                      <div className="mt-1 w-full bg-gray-200 rounded-full h-2">
+                      <div className="mt-1 w-full bg-muted rounded-full h-2">
                         <div
-                          className="bg-black h-2 rounded-full"
+                          className="bg-primary h-2 rounded-full"
                           style={{ width: `${(candidate.analysis.educationFit / 10) * 100}%` }}
                         />
                       </div>
                     </div>
                     <div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Projects</span>
-                        <span className="text-gray-900">{candidate.analysis.projectImpact}/10</span>
+                        <span className="text-muted-foreground">Projects</span>
+                        <span className="text-foreground">{candidate.analysis.projectImpact}/10</span>
                       </div>
-                      <div className="mt-1 w-full bg-gray-200 rounded-full h-2">
+                      <div className="mt-1 w-full bg-muted rounded-full h-2">
                         <div
-                          className="bg-black h-2 rounded-full"
+                          className="bg-primary h-2 rounded-full"
                           style={{ width: `${(candidate.analysis.projectImpact / 10) * 100}%` }}
                         />
                       </div>
                     </div>
-                    <div className="pt-4 border-t border-gray-200">
+                    <div className="pt-4 border-t border-border">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-900">Overall Score</span>
-                        <span className="text-lg font-bold text-black">{candidate.analysis.totalScore}</span>
+                        <span className="text-sm font-medium text-foreground">Overall Score</span>
+                        <span className="text-lg font-bold text-primary">{candidate.analysis.totalScore}</span>
                       </div>
                     </div>
                   </div>
-                )}
+                </>}
               </div>
-              <div className="bg-gray-50 px-6 py-3">
-                <button
+              <div className="bg-muted/30 px-6 py-3">
+                <Button
                   onClick={() => handleViewDetails(candidate)}
-                  className="text-sm font-medium text-black hover:underline"
+                  variant="link"
+                  size="sm"
+                  className="text-primary"
                 >
                   View Details
-                </button>
+                </Button>
               </div>
             </div>
           ))}
@@ -1007,52 +1009,54 @@ The Hiring Team
       {/* Candidate Details Modal */}
       {showDetailsModal && selectedCandidate && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-card rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto text-foreground">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold">Candidate Details</h2>
-              <button
+              <Button
                 onClick={() => setShowDetailsModal(false)}
-                className="text-gray-500 hover:text-gray-700"
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground"
               >
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </button>
+              </Button>
             </div>
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Profile</h3>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600">
+                <h3 className="text-lg font-medium text-foreground mb-2">Profile</h3>
+                <div className="bg-muted/30 p-4 rounded-lg">
+                  <p className="text-sm text-muted-foreground">
                     <span className="font-medium">Name:</span> {selectedCandidate.analysis?.candidateName || selectedCandidate.fileName}
                   </p>
                   {selectedCandidate.analysis?.email && (
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-muted-foreground">
                       <span className="font-medium">Email:</span> {selectedCandidate.analysis.email}
                     </p>
                   )}
                 </div>
               </div>
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Key Strengths</h3>
-                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                <h3 className="text-lg font-medium text-foreground mb-2">Key Strengths</h3>
+                <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
                   {selectedCandidate.analysis?.keyStrengths.map((strength, i) => (
                     <li key={i}>{strength}</li>
                   ))}
                 </ul>
               </div>
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Areas for Improvement</h3>
-                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                <h3 className="text-lg font-medium text-foreground mb-2">Areas for Improvement</h3>
+                <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
                   {selectedCandidate.analysis?.areasForImprovement.map((area, i) => (
                     <li key={i}>{area}</li>
                   ))}
                 </ul>
               </div>
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Detailed Analysis</h3>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600 whitespace-pre-line">
+                <h3 className="text-lg font-medium text-foreground mb-2">Detailed Analysis</h3>
+                <div className="bg-muted/30 p-4 rounded-lg">
+                  <p className="text-sm text-muted-foreground whitespace-pre-line">
                     {selectedCandidate.analysis?.analysis}
                   </p>
                 </div>
@@ -1104,7 +1108,7 @@ The Hiring Team
             </div>
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">Job Title</label>
-              <input
+              <Input
                 type="text"
                 className="w-full border rounded px-3 py-2"
                 value={saveJobTitle}

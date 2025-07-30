@@ -1,3 +1,308 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities; 
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Premium Modern Dark Theme - Lighter & Cleaner */
+    --background: 0 0% 6%;
+    --foreground: 0 0% 96%;
+
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 96%;
+
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 96%;
+
+    /* Vibrant violet primary - signature glow */
+    --primary: 258 90% 66%;
+    --primary-foreground: 0 0% 98%;
+
+    /* Deep indigo secondary */
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 98%;
+
+    /* Subtle muted tones */
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 65%;
+
+    /* Electric indigo accent */
+    --accent: 243 75% 59%;
+    --accent-foreground: 0 0% 98%;
+
+    /* Soft red for warnings */
+    --destructive: 0 85% 65%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Premium violet accent */
+    --violet: 258 90% 66%;
+    --violet-foreground: 0 0% 98%;
+    
+    /* Deep indigo complement */
+    --indigo: 243 75% 59%;
+    --indigo-foreground: 0 0% 98%;
+
+    /* Refined borders and inputs */
+    --border: 0 0% 15%;
+    --input: 0 0% 10%;
+    --ring: 258 90% 66%;
+
+    --radius: 0.75rem;
+
+    /* Premium Futuristic Gradient System */
+    --gradient-primary: linear-gradient(135deg, hsl(258 90% 66%) 0%, hsl(243 75% 59%) 100%);
+    --gradient-primary-subtle: linear-gradient(135deg, hsl(258 90% 66% / 0.15) 0%, hsl(243 75% 59% / 0.15) 100%);
+    --gradient-background: linear-gradient(180deg, hsl(0 0% 6%) 0%, hsl(0 0% 4%) 100%);
+    --gradient-glow: radial-gradient(circle at center, hsl(258 90% 66% / 0.25) 0%, transparent 70%);
+    --gradient-premium: linear-gradient(135deg, hsl(258 90% 66% / 0.8), hsl(243 75% 59% / 0.8));
+    --gradient-hero: linear-gradient(135deg, hsl(0 0% 6%) 0%, hsl(258 90% 66% / 0.05) 50%, hsl(0 0% 4%) 100%);
+    --hero-pattern: url('./assets/moon.png');
+    
+    /* Premium Animation & Effects */
+    --spring-duration: 0.35s;
+    --spring-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --shadow-premium: 0 20px 25px -5px hsl(0 0% 0% / 0.4), 0 10px 10px -5px hsl(0 0% 0% / 0.2);
+    --shadow-premium-lg: 0 32px 64px -12px hsl(0 0% 0% / 0.6);
+    --shadow-glow: 0 0 32px hsl(258 90% 66% / 0.35);
+    --shadow-glow-primary: 0 0 24px hsl(258 90% 66% / 0.4);
+    --shadow-glow-violet: 0 0 40px hsl(258 90% 66% / 0.3);
+    --transition-smooth: all var(--spring-duration) var(--spring-ease);
+    --grain-texture: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  /* Premium Typography System */
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    font-variation-settings: normal;
+    letter-spacing: -0.014em;
+    line-height: 1.6;
+    background-image: var(--grain-texture);
+    background-repeat: repeat;
+    background-size: 256px 256px;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.032em;
+    line-height: 1.15;
+    font-weight: 600;
+  }
+
+  h1 {
+    font-weight: 700;
+    letter-spacing: -0.04em;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+    transition: background var(--spring-duration) ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.3);
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Premium scroll customization */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary) / 0.3);
+    border-radius: 4px;
+    transition: background 0.3s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.5);
+  }
+
+  /* Premium Effects System */
+  .premium-glow {
+    box-shadow: var(--shadow-premium);
+    transition: var(--transition-smooth);
+  }
+
+  .premium-glow:hover {
+    box-shadow: var(--shadow-premium-lg), var(--shadow-glow);
+    transform: translateY(-2px);
+  }
+
+  .gradient-text {
+    background: var(--gradient-primary);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-size: 200% 200%;
+    animation: gradientShift 4s ease infinite;
+  }
+
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  /* Premium Button System */
+  .premium-button {
+    position: relative;
+    overflow: hidden;
+    transition: var(--transition-smooth);
+    background: var(--gradient-primary);
+    border: 1px solid hsl(var(--primary) / 0.3);
+    backdrop-filter: blur(8px);
+  }
+
+  .premium-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.15), transparent);
+    transition: left var(--spring-duration) var(--spring-ease);
+  }
+
+  .premium-button:hover::before {
+    left: 100%;
+  }
+
+  .premium-button:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: var(--shadow-glow-primary), var(--shadow-premium);
+  }
+
+  /* Futuristic Glass Effects */
+  .glass-card {
+    background: hsl(var(--card) / 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--border) / 0.5);
+    transition: var(--transition-smooth);
+  }
+
+  .glass-card:hover {
+    background: hsl(var(--card) / 0.8);
+    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* Futuristic Hero Background System */
+  .hero-bg {
+    background: var(--gradient-background);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--hero-pattern);
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    opacity: 0.15;
+    z-index: 0;
+    filter: blur(0.5px);
+  }
+
+  .hero-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--gradient-hero);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* Floating Elements */
+  .floating-orb {
+    position: absolute;
+    border-radius: 50%;
+    background: var(--gradient-premium);
+    filter: blur(1px);
+    animation: float 8s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    33% { transform: translateY(-20px) rotate(120deg); }
+    66% { transform: translateY(10px) rotate(240deg); }
+  }
+
+  /* Section Spacing System */
+  .section-spacing {
+    padding: 5rem 1.5rem;
+  }
+
+  @media (min-width: 768px) {
+    .section-spacing {
+      padding: 7rem 1.5rem;
+    }
+  }
+
+  /* Animation System */
+  .animate-fade-up {
+    animation: fadeUp 0.6s var(--spring-ease) forwards;
+  }
+
+  @keyframes fadeUp {
+    from { 
+      opacity: 0; 
+      transform: translateY(24px); 
+    }
+    to { 
+      opacity: 1; 
+      transform: translateY(0); 
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+} 

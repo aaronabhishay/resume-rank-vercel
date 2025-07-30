@@ -15,7 +15,7 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
   useEffect(() => {
     const fetchFolders = async () => {
       try {
-        const response = await fetch(`${window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://resume-rank.onrender.com'}/api/drive-folders`);
+        const response = await fetch(`${window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin}/api/drive-folders`);
         if (!response.ok) {
           throw new Error('Failed to fetch folders');
         }

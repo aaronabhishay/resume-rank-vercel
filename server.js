@@ -54,7 +54,8 @@ app.use(cors({
     'http://localhost:5001',
     'https://resume-rank.vercel.app',
     'https://resume-rank-git-main.vercel.app',
-    'https://resume-rank-git-develop.vercel.app'
+    'https://resume-rank-git-develop.vercel.app',
+    'https://resume-rank-vercel.vercel.app'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

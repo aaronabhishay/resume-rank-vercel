@@ -51,7 +51,7 @@ function ProtectedRoute({ children }) {
 // Dynamically determine backend URL based on environment
 const BACKEND_URL = window.location.hostname === 'localhost' 
   ? 'http://localhost:5000'  // Local backend always on 5000
-  : 'https://resume-rank.onrender.com';  // Production
+  : window.location.origin;  // Production - use current domain
 
 console.log('Using backend URL:', BACKEND_URL);
 

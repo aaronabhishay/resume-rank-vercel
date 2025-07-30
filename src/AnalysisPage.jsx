@@ -16,7 +16,7 @@ import { useNavigate } from "react-router-dom";
 
 const BACKEND_URL = window.location.hostname === 'localhost' 
   ? 'http://localhost:5000'  // Local backend always on 5000
-  : 'https://resume-rank.onrender.com';  // Production
+  : window.location.origin;  // Production - use current domain
 
 export default function AnalysisPage() {
   const [jobDescription, setJobDescription] = useState("");

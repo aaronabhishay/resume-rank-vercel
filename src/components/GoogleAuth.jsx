@@ -25,7 +25,7 @@ export default function GoogleAuth({ onAuthSuccess, onAuthError }) {
 
     try {
       // Redirect to Google OAuth
-      const authUrl = `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://resume-rank.onrender.com'}/auth/google`;
+      const authUrl = `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin}/auth/google`;
       window.location.href = authUrl;
     } catch (err) {
       setError('Failed to initiate Google authentication');

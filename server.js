@@ -1,8 +1,17 @@
+console.log('=== SERVER STARTING ===');
+console.log('Loading dependencies...');
+
 const express = require('express');
 const cors = require('cors');
 const pdf = require('pdf-parse');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
+
+console.log('Dependencies loaded successfully');
+console.log('=== ENVIRONMENT VARIABLES ===');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('VERCEL:', process.env.VERCEL);
+console.log('PORT:', process.env.PORT);
 
 // Check for required environment variables
 if (!process.env.GEMINI_API_KEY || !process.env.GOOGLE_SERVICE_ACCOUNT) {
@@ -489,8 +498,20 @@ app.post('/api/n8n/send-rejection-emails', async (req, res) => {
 
 // Add a test endpoint
 app.get('/api/test', (req, res) => {
+  console.log('Test endpoint called');
   res.json({ 
     status: 'API is working!',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    oauth2Client: oauth2Client ? 'Initialized' : 'Not initialized'
+  });
+});
+
+// Add a simple health check
+app.get('/api/health', (req, res) => {
+  console.log('Health check called');
+  res.json({ 
+    status: 'healthy',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });

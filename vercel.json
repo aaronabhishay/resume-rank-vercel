@@ -2,10 +2,6 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.js",
-      "use": "@vercel/node"
-    },
-    {
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
@@ -13,6 +9,11 @@
       }
     }
   ],
+  "functions": {
+    "api/index.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
   "routes": [
     {
       "src": "/api/(.*)",
@@ -23,31 +24,8 @@
       "dest": "/api/index.js"
     },
     {
-      "src": "/bundle.js",
-      "dest": "/dist/bundle.js"
-    },
-    {
-      "src": "/(.*\\.(css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot))",
-      "dest": "/dist/$1"
-    },
-    {
-      "src": "/analysis(.*)",
-      "dest": "/dist/index.html"
-    },
-    {
-      "src": "/dashboard(.*)",
-      "dest": "/dist/index.html"
-    },
-    {
-      "src": "/saved-jobs(.*)",
-      "dest": "/dist/index.html"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/dist/index.html"
+      "dest": "/index.html"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 } 

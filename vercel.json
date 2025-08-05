@@ -15,11 +15,15 @@
   ],
   "routes": [
     {
-      "src": "/auth/(.*)",
+      "src": "/api/(.*)",
       "dest": "/api/index.js"
     },
     {
-      "src": "/api/(.*)",
+      "src": "/auth/google",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/auth/google/callback",
       "dest": "/api/index.js"
     },
     {

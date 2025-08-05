@@ -766,11 +766,17 @@ app.get('/auth/google/callback', async (req, res) => {
     
     // Redirect back to frontend with tokens in URL (for demo purposes)
     // In production, you'd want to store these securely on the server
-    const redirectUrl = `http://localhost:5001/analysis?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token || ''}&oauth_success=true`;
+    const baseUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://resume-rank-vercel.vercel.app'
+      : 'http://localhost:5001';
+    const redirectUrl = `${baseUrl}/analysis?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token || ''}&oauth_success=true`;
     res.redirect(redirectUrl);
   } catch (error) {
     console.error('Error getting tokens:', error);
-    const errorRedirectUrl = `http://localhost:5001/analysis?error=${encodeURIComponent('Failed to authorize Google Drive access')}`;
+    const baseUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://resume-rank-vercel.vercel.app'
+      : 'http://localhost:5001';
+    const errorRedirectUrl = `${baseUrl}/analysis?error=${encodeURIComponent('Failed to authorize Google Drive access')}`;
     res.redirect(errorRedirectUrl);
   }
 });

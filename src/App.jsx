@@ -36,9 +36,14 @@ function ProtectedRoute({ children }) {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   
-  // Check if this is an OAuth callback
+  // Check if this is an OAuth callback - allow access to analysis page
   const urlParams = new URLSearchParams(location.search);
   const isOAuthCallback = urlParams.get('access_token') || urlParams.get('oauth_success');
+  
+  // For analysis page, allow OAuth callbacks even without user
+  if (location.pathname === '/analysis' && isOAuthCallback) {
+    return children;
+  }
   
   if (!user && !isOAuthCallback) {
     // Redirect to sign-in, preserving the intended destination

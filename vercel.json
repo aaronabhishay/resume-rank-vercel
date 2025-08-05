@@ -27,6 +27,22 @@
       "dest": "/api/index.js"
     },
     {
+      "src": "/analysis",
+      "dest": "/dist/index.html"
+    },
+    {
+      "src": "/dashboard",
+      "dest": "/dist/index.html"
+    },
+    {
+      "src": "/saved-jobs",
+      "dest": "/dist/index.html"
+    },
+    {
+      "src": "/auth",
+      "dest": "/dist/index.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "/dist/index.html"
     }

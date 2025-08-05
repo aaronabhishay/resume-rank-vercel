@@ -72,6 +72,13 @@ try {
   
   // OAuth 2.0 setup for user authentication
 
+// Debug environment variables
+console.log('Environment check:');
+console.log('GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? 'Found (value hidden)' : 'NOT FOUND');
+console.log('GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? 'Found (value hidden)' : 'NOT FOUND');
+console.log('GOOGLE_REDIRECT_URI:', process.env.GOOGLE_REDIRECT_URI || 'Not set');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -80,9 +87,10 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       ? 'https://resume-rank-vercel.vercel.app/auth/google/callback'
       : 'http://localhost:5000/auth/google/callback')
   );
-  console.log('Google OAuth 2.0 client initialized');
+  console.log('Google OAuth 2.0 client initialized successfully');
 } else {
   console.log('Google OAuth 2.0 credentials not found - OAuth authentication will not be available');
+  console.log('Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables');
 }
 
   // Initialize Drive API with service account (fallback)

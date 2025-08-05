@@ -76,7 +76,9 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/auth/google/callback'
+    process.env.GOOGLE_REDIRECT_URI || (process.env.NODE_ENV === 'production' 
+      ? 'https://resume-rank-vercel.vercel.app/auth/google/callback'
+      : 'http://localhost:5000/auth/google/callback')
   );
   console.log('Google OAuth 2.0 client initialized');
 } else {

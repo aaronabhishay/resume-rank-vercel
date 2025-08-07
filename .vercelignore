@@ -1,0 +1,26 @@
+# Development files
+node_modules
+.env.local
+.env.development
+.env.production
+*.log
+
+# Source files (we only need the built dist)
+src
+webpack.config.js
+.babelrc
+postcss.config.js
+tailwind.config.js
+
+# Testing files
+tests
+test-*.js
+*test.js
+
+# Development tools
+.git
+README.md
+*.md
+
+# But include the api directory for serverless functions
+!api

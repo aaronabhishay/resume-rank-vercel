@@ -8,8 +8,8 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "nodemon server.js",
     "client": "webpack serve --config webpack.config.js --mode development",
-    "build": "webpack --config webpack.config.js --mode production",
-    "vercel-build": "webpack --config webpack.config.js --mode production",
+    "build": "webpack --config webpack.config.js --mode production && echo 'Build completed successfully'",
+    "vercel-build": "webpack --config webpack.config.js --mode production && echo 'Vercel build completed successfully'",
     "test-deployment": "node test-deployment.js"
   },
   "keywords": [],

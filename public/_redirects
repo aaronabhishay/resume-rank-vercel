@@ -1,0 +1,4 @@
+# Redirect all non-API and non-auth routes to index.html for SPA routing
+/api/* 200
+/auth/* 200
+/* /index.html 200

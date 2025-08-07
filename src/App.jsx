@@ -38,14 +38,20 @@ function ProtectedRoute({ children }) {
   
   // Check if this is an OAuth callback - allow access to analysis page
   const urlParams = new URLSearchParams(location.search);
-  const isOAuthCallback = urlParams.get('access_token') || urlParams.get('oauth_success');
+  const isOAuthCallback = urlParams.get('access_token') || urlParams.get('oauth_success') || urlParams.get('code');
   
   // For analysis page, allow OAuth callbacks even without user
   if (location.pathname === '/analysis' && isOAuthCallback) {
     return children;
   }
   
-  if (!user && !isOAuthCallback) {
+  // Also allow access if user is already authenticated locally (from localStorage)
+  const localAccessToken = typeof window !== 'undefined' ? localStorage.getItem('google_access_token') : null;
+  if (location.pathname === '/analysis' && localAccessToken) {
+    return children;
+  }
+  
+  if (!user && !isOAuthCallback && !localAccessToken) {
     // Redirect to sign-in, preserving the intended destination
     return <Navigate to={`/auth?view=sign-in&redirect=${encodeURIComponent(location.pathname)}`} replace />;
   }

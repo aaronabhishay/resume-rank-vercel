@@ -3,9 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>React + Tailwind App</title>
+    <title>Resume Ranker - AI-Powered Resume Analysis</title>
+    <meta name="description" content="Analyze and rank resumes using AI to find the best candidates for your job openings." />
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Handle client-side routing for SPAs on refresh/direct access
+      if (!window.location.pathname.startsWith('/api') && !window.location.pathname.startsWith('/auth')) {
+        console.log('SPA routing detected for:', window.location.pathname);
+      }
+    </script>
   </body>
 </html> 

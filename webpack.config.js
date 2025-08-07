@@ -1,6 +1,7 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 require('dotenv').config();
 
 module.exports = {
@@ -40,6 +41,20 @@ module.exports = {
       'process.env.SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL),
       'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.SUPABASE_ANON_KEY),
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+    }),
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: 'public/_redirects',
+          to: '.',
+          noErrorOnMissing: true
+        },
+        {
+          from: 'public/favicon.ico',
+          to: 'favicon.ico',
+          noErrorOnMissing: true
+        }
+      ]
     }),
   ],
   devServer: {

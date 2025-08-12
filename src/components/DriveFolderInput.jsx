@@ -164,7 +164,12 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
                           <CommandItem
                             key={folder.id}
                             value={folder.name}
-                            onSelect={() => handleFolderSelect(folder.id)}
+                            onSelect={(currentValue) => {
+                              const selectedFolder = folders.find(f => f.name === currentValue);
+                              if (selectedFolder) {
+                                handleFolderSelect(selectedFolder.id);
+                              }
+                            }}
                           >
                             <div className="flex items-center">
                               <FolderGit2 className="mr-2 h-4 w-4 text-blue-500" />

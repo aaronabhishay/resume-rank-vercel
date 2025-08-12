@@ -33,14 +33,14 @@ function extractJsonFromText(text) {
   return text;
 }
 
-// Function to analyze a resume using Gemini 1.5
+// Function to analyze a resume using Gemini 2.0
 async function analyzeResumeWithGeminiFlash(resumeText, jobDescription) {
   try {
-    console.log("Initializing Gemini 1.5 model...");
+    console.log("Initializing Gemini 2.0 model...");
     
-    // Create the Gemini 1.5 model instance
+    // Create the Gemini 2.0 model instance
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",  // Using Gemini 1.5 Flash model
+      model: "gemini-2.0-flash-exp",  // Using Gemini 2.0 Flash model
       // Optional configuration parameters
       generationConfig: {
         temperature: 0.4,         // Lower temperature for more focused/consistent output
@@ -83,11 +83,11 @@ async function analyzeResumeWithGeminiFlash(resumeText, jobDescription) {
     }
     `;
     
-    console.log("Sending request to Gemini 1.5 Flash...");
+    console.log("Sending request to Gemini 2.0 Flash...");
     
     // Generate content with the model
     const result = await model.generateContent(prompt);
-    console.log("Response received from Gemini 1.5");
+    console.log("Response received from Gemini 2.0");
     
     // Get the response
     const response = await result.response;
@@ -110,7 +110,7 @@ async function analyzeResumeWithGeminiFlash(resumeText, jobDescription) {
     }
     
   } catch (error) {
-    console.error("Error in Gemini 1.5 analysis:", error);
+    console.error("Error in Gemini 2.0 analysis:", error);
     
     // For this example, don't try alternative model since we know the key is expired
     console.log("Returning mock data due to API issues");
@@ -231,7 +231,7 @@ async function runExample() {
 
 // Run the example if executed directly
 if (require.main === module) {
-  console.log("Running Gemini 1.5 Flash example...");
+  console.log("Running Gemini 2.0 Flash example...");
   runExample().then(() => {
     console.log("Example complete!");
   });

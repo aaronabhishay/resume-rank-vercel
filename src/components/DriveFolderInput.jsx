@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { FolderGit2, Link } from "lucide-react";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "../components/ui/select";
 import { Input } from "./ui/input";
+import { getApiUrl } from "../utils/config";
 
 export default function DriveFolderInput({ value, onChange, onInputModeChange }) {
   const [folders, setFolders] = useState([]);
@@ -15,7 +16,7 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
   useEffect(() => {
     const fetchFolders = async () => {
       try {
-        const response = await fetch(`${window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin}/api/drive-folders`);
+        const response = await fetch(`${getApiUrl()}/api/drive-folders`);
         if (!response.ok) {
           throw new Error('Failed to fetch folders');
         }

@@ -13,10 +13,9 @@ import ResultsDisplay from "./components/ResultsDisplay";
 import GoogleAuth from "./components/GoogleAuth";
 import { supabase } from "./supabaseClient";
 import { useNavigate } from "react-router-dom";
+import { getApiUrl } from "./utils/config";
 
-const BACKEND_URL = window.location.hostname === 'localhost' 
-  ? 'http://localhost:5000'  // Local backend always on 5000
-  : window.location.origin;  // Production - use current domain
+const BACKEND_URL = getApiUrl();
 
 export default function AnalysisPage() {
   const [jobDescription, setJobDescription] = useState("");

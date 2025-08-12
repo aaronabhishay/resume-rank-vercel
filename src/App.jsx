@@ -15,6 +15,7 @@ import AnalysisPage from "./AnalysisPage";
 import SavedJobsPage from "./SavedJobsPage";
 import AuthPage from "./components/Auth/AuthPage";
 import { supabase } from "./supabaseClient";
+import { getApiUrl } from "./utils/config";
 
 function ProtectedRoute({ children }) {
   const [user, setUser] = React.useState(null);
@@ -60,9 +61,7 @@ function ProtectedRoute({ children }) {
 }
 
 // Dynamically determine backend URL based on environment
-const BACKEND_URL = window.location.hostname === 'localhost' 
-  ? 'http://localhost:5000'  // Local backend always on 5000
-  : window.location.origin;  // Production - use current domain
+const BACKEND_URL = getApiUrl();
 
 console.log('Using backend URL:', BACKEND_URL);
 

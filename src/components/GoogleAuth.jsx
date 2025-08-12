@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { getApiUrl } from '../utils/config';
 
 export default function GoogleAuth({ onAuthSuccess, onAuthError }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -25,7 +26,7 @@ export default function GoogleAuth({ onAuthSuccess, onAuthError }) {
 
     try {
       // Redirect to Google OAuth
-      const authUrl = `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin}/auth/google`;
+      const authUrl = `${getApiUrl()}/auth/google`;
       window.location.href = authUrl;
     } catch (err) {
       setError('Failed to initiate Google authentication');

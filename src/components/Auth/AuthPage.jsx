@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Lock, UserPlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { getBaseUrl } from '../../utils/config';
 
 const AuthPage = () => {
   const location = useLocation();
@@ -44,7 +45,13 @@ const AuthPage = () => {
     setMessage('');
     try {
       if (view === 'sign-in') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ 
+          email, 
+          password,
+          options: {
+            redirectTo: getBaseUrl() + '/dashboard'
+          }
+        });
         if (error) throw error;
         setMessage('Signed in! Redirecting...');
         // Redirect after sign-in
@@ -52,7 +59,13 @@ const AuthPage = () => {
         const redirectTo = params.get('redirect') || '/dashboard';
         setTimeout(() => navigate(redirectTo, { replace: true }), 1000);
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: {
+            emailRedirectTo: getBaseUrl() + '/auth?view=sign-in'
+          }
+        });
         if (error) throw error;
         setMessage('Check your email for a confirmation link!');
       }

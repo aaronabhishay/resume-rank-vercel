@@ -75,6 +75,11 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
   };
 
   const handleFolderChange = (folderId) => {
+    // Don't process placeholder values
+    if (folderId === "no-folders") {
+      return;
+    }
+    
     setSelectedFolderId(folderId);
     // For dropdown mode, pass the folder ID to the parent
     onChange(folderId);
@@ -149,11 +154,11 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
                         </div>
                       </SelectItem>
                     ))
-                  ) : (
-                    <SelectItem value="" disabled>
-                      {loading ? "Loading..." : error || "No folders available"}
-                    </SelectItem>
-                  )}
+                                  ) : (
+                  <SelectItem value="no-folders" disabled>
+                    {loading ? "Loading..." : error || "No folders available"}
+                  </SelectItem>
+                )}
                 </SelectContent>
               </Select>
             </div>

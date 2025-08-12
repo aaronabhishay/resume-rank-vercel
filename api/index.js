@@ -282,20 +282,38 @@ app.get('/api/drive-folders', async (req, res) => {
 
     console.log('Fetching all folders from user\'s Google Drive...');
     
-    // Fetch all folders accessible to the user, ordered by name
-    const response = await driveClient.files.list({
-      q: "mimeType='application/vnd.google-apps.folder' and trashed=false",
-      fields: 'files(id, name, parents, modifiedTime, webViewLink)',
-      orderBy: 'name',
-      pageSize: 100 // Get up to 100 folders
-    });
+    let allFolders = [];
+    let nextPageToken = null;
+    
+    do {
+      // Fetch folders with pagination support
+      const response = await driveClient.files.list({
+        q: "mimeType='application/vnd.google-apps.folder' and trashed=false",
+        fields: 'nextPageToken, files(id, name, parents, modifiedTime, webViewLink)',
+        orderBy: 'name',
+        pageSize: 1000, // Maximum allowed by Google Drive API
+        pageToken: nextPageToken
+      });
 
-    if (!response.data.files || response.data.files.length === 0) {
+      if (response.data.files && response.data.files.length > 0) {
+        allFolders = allFolders.concat(response.data.files);
+      }
+      
+      nextPageToken = response.data.nextPageToken;
+      
+      // Safety check to prevent infinite loops (limit to 10 pages = 10,000 folders max)
+      if (allFolders.length >= 10000) {
+        console.log('Reached maximum folder limit of 10,000 folders');
+        break;
+      }
+    } while (nextPageToken);
+
+    if (allFolders.length === 0) {
       return res.json([]);
     }
 
     // Organize folders and add some useful metadata
-    const folders = response.data.files.map(folder => ({
+    const folders = allFolders.map(folder => ({
       id: folder.id,
       name: folder.name,
       webViewLink: folder.webViewLink,

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { FolderGit2, Link, RefreshCw } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { FolderGit2, Link, RefreshCw, Search, X } from "lucide-react";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "../components/ui/select";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
@@ -13,6 +13,8 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
   const [customLink, setCustomLink] = useState("");
   const [inputMode, setInputMode] = useState("dropdown"); // "dropdown" or "custom"
   const [userEnteredCustomLink, setUserEnteredCustomLink] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
 
   const fetchFolders = async () => {
     setLoading(true);
@@ -54,6 +56,18 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
     fetchFolders();
   }, []);
 
+  // Filter folders based on search term
+  const filteredFolders = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return folders;
+    }
+    
+    const searchLower = searchTerm.toLowerCase();
+    return folders.filter(folder => 
+      folder.name.toLowerCase().includes(searchLower)
+    );
+  }, [folders, searchTerm]);
+
   useEffect(() => {
     if (inputMode === "dropdown") {
       setSelectedFolderId(value);
@@ -76,7 +90,7 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
 
   const handleFolderChange = (folderId) => {
     // Don't process placeholder values
-    if (folderId === "no-folders") {
+    if (folderId === "no-folders" || folderId === "no-results") {
       return;
     }
     
@@ -91,6 +105,21 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
     // For custom mode, pass the full link to the parent
     // The parent will handle extracting the folder ID if needed
     onChange(link);
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const clearSearch = () => {
+    setSearchTerm("");
+  };
+
+  const toggleSearch = () => {
+    setShowSearch(!showSearch);
+    if (showSearch) {
+      setSearchTerm(""); // Clear search when hiding
+    }
   };
 
   const getSelectedFolderName = () => {
@@ -131,6 +160,31 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
       {/* Dropdown Mode */}
       {inputMode === "dropdown" && (
         <div className="space-y-2">
+          {/* Search Bar (when enabled) */}
+          {showSearch && folders.length > 0 && (
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
+              <Input
+                type="text"
+                placeholder="Search folders..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                className="pl-9 pr-8"
+              />
+              {searchTerm && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearSearch}
+                  className="absolute right-1 top-1 h-6 w-6 p-0 hover:bg-gray-100"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          )}
+
           <div className="flex gap-2">
             <div className="relative flex-1">
               <FolderGit2 className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
@@ -143,9 +197,9 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
                     "Select a folder..."
                   } />
                 </SelectTrigger>
-                <SelectContent>
-                  {folders.length > 0 ? (
-                    folders.map(folder => (
+                <SelectContent className="max-h-[300px]">
+                  {filteredFolders.length > 0 ? (
+                    filteredFolders.map(folder => (
                       <SelectItem key={folder.id} value={folder.id}>
                         <div className="flex items-center">
                           <FolderGit2 className="h-4 w-4 mr-2 text-blue-500" />
@@ -154,14 +208,37 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
                         </div>
                       </SelectItem>
                     ))
-                                  ) : (
-                  <SelectItem value="no-folders" disabled>
-                    {loading ? "Loading..." : error || "No folders available"}
-                  </SelectItem>
-                )}
+                  ) : searchTerm ? (
+                    <SelectItem value="no-results" disabled>
+                      No folders match "{searchTerm}"
+                    </SelectItem>
+                  ) : folders.length > 0 ? (
+                    <SelectItem value="no-folders" disabled>
+                      No folders available
+                    </SelectItem>
+                  ) : (
+                    <SelectItem value="no-folders" disabled>
+                      {loading ? "Loading..." : error || "No folders available"}
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
+            
+            {/* Search Toggle Button */}
+            {folders.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={toggleSearch}
+                className="shrink-0"
+                title={showSearch ? "Hide search" : "Search folders"}
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            )}
+            
             <Button
               type="button"
               variant="outline"
@@ -174,14 +251,31 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
+          
           {error && (
             <div className="text-sm text-red-600 mt-1">
               {error}
             </div>
           )}
+          
           {!error && folders.length > 0 && (
-            <div className="text-xs text-green-600 mt-1">
-              Found {folders.length} folders in your Google Drive
+            <div className="text-xs text-green-600 mt-1 flex items-center justify-between">
+              <span>
+                {searchTerm ? (
+                  `${filteredFolders.length} of ${folders.length} folders match "${searchTerm}"`
+                ) : (
+                  `Found ${folders.length} folders in your Google Drive`
+                )}
+              </span>
+              {folders.length > 10 && !showSearch && (
+                <button
+                  type="button"
+                  onClick={toggleSearch}
+                  className="text-blue-600 hover:text-blue-800 underline text-xs"
+                >
+                  Search folders
+                </button>
+              )}
             </div>
           )}
         </div>

@@ -14,7 +14,6 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
   const [inputMode, setInputMode] = useState("dropdown"); // "dropdown" or "custom"
   const [userEnteredCustomLink, setUserEnteredCustomLink] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [showSearch, setShowSearch] = useState(false);
 
   const fetchFolders = async () => {
     setLoading(true);
@@ -115,13 +114,6 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
     setSearchTerm("");
   };
 
-  const toggleSearch = () => {
-    setShowSearch(!showSearch);
-    if (showSearch) {
-      setSearchTerm(""); // Clear search when hiding
-    }
-  };
-
   const getSelectedFolderName = () => {
     const selectedFolder = folders.find(folder => folder.id === selectedFolderId);
     return selectedFolder ? selectedFolder.name : "Select a folder...";
@@ -160,31 +152,6 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
       {/* Dropdown Mode */}
       {inputMode === "dropdown" && (
         <div className="space-y-2">
-          {/* Search Bar (when enabled) */}
-          {showSearch && folders.length > 0 && (
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-              <Input
-                type="text"
-                placeholder="Search folders..."
-                value={searchTerm}
-                onChange={handleSearchChange}
-                className="pl-9 pr-8"
-              />
-              {searchTerm && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearSearch}
-                  className="absolute right-1 top-1 h-6 w-6 p-0 hover:bg-gray-100"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
-          )}
-
           <div className="flex gap-2">
             <div className="relative flex-1">
               <FolderGit2 className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
@@ -197,47 +164,73 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
                     "Select a folder..."
                   } />
                 </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {filteredFolders.length > 0 ? (
-                    filteredFolders.map(folder => (
-                      <SelectItem key={folder.id} value={folder.id}>
-                        <div className="flex items-center">
-                          <FolderGit2 className="h-4 w-4 mr-2 text-blue-500" />
-                          <span>{folder.name}</span>
-                          {folder.isRoot && <span className="ml-2 text-xs text-gray-500">(Root)</span>}
-                        </div>
-                      </SelectItem>
-                    ))
-                  ) : searchTerm ? (
-                    <SelectItem value="no-results" disabled>
-                      No folders match "{searchTerm}"
-                    </SelectItem>
-                  ) : folders.length > 0 ? (
-                    <SelectItem value="no-folders" disabled>
-                      No folders available
-                    </SelectItem>
-                  ) : (
-                    <SelectItem value="no-folders" disabled>
-                      {loading ? "Loading..." : error || "No folders available"}
-                    </SelectItem>
+                <SelectContent className="max-h-[400px] w-full">
+                  {/* Search input inside dropdown */}
+                  {folders.length > 10 && (
+                    <div className="sticky top-0 bg-white border-b px-2 py-2 z-50">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search folders..."
+                          value={searchTerm}
+                          onChange={handleSearchChange}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          className="w-full pl-8 pr-8 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        {searchTerm && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              clearSearch();
+                            }}
+                            className="absolute right-2 top-2.5 h-4 w-4 text-gray-400 hover:text-gray-600"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Folder list */}
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {filteredFolders.length > 0 ? (
+                      filteredFolders.map(folder => (
+                        <SelectItem key={folder.id} value={folder.id}>
+                          <div className="flex items-center">
+                            <FolderGit2 className="h-4 w-4 mr-2 text-blue-500" />
+                            <span>{folder.name}</span>
+                            {folder.isRoot && <span className="ml-2 text-xs text-gray-500">(Root)</span>}
+                          </div>
+                        </SelectItem>
+                      ))
+                    ) : searchTerm ? (
+                      <div className="px-3 py-2 text-sm text-gray-500 text-center">
+                        No folders match "{searchTerm}"
+                      </div>
+                    ) : folders.length > 0 ? (
+                      <div className="px-3 py-2 text-sm text-gray-500 text-center">
+                        No folders available
+                      </div>
+                    ) : (
+                      <div className="px-3 py-2 text-sm text-gray-500 text-center">
+                        {loading ? "Loading..." : error || "No folders available"}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Search results summary at bottom */}
+                  {searchTerm && folders.length > 0 && (
+                    <div className="sticky bottom-0 bg-gray-50 border-t px-3 py-2 text-xs text-gray-600">
+                      {filteredFolders.length} of {folders.length} folders match "{searchTerm}"
+                    </div>
                   )}
                 </SelectContent>
               </Select>
             </div>
-            
-            {/* Search Toggle Button */}
-            {folders.length > 0 && (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={toggleSearch}
-                className="shrink-0"
-                title={showSearch ? "Hide search" : "Search folders"}
-              >
-                <Search className="h-4 w-4" />
-              </Button>
-            )}
             
             <Button
               type="button"
@@ -259,22 +252,10 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
           )}
           
           {!error && folders.length > 0 && (
-            <div className="text-xs text-green-600 mt-1 flex items-center justify-between">
-              <span>
-                {searchTerm ? (
-                  `${filteredFolders.length} of ${folders.length} folders match "${searchTerm}"`
-                ) : (
-                  `Found ${folders.length} folders in your Google Drive`
-                )}
-              </span>
-              {folders.length > 10 && !showSearch && (
-                <button
-                  type="button"
-                  onClick={toggleSearch}
-                  className="text-blue-600 hover:text-blue-800 underline text-xs"
-                >
-                  Search folders
-                </button>
+            <div className="text-xs text-green-600 mt-1">
+              Found {folders.length} folders in your Google Drive
+              {folders.length > 10 && (
+                <span className="text-gray-500 ml-1">(search available in dropdown)</span>
               )}
             </div>
           )}

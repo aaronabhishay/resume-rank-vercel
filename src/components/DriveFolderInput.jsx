@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { FolderGit2, Link } from "lucide-react";
+import { FolderGit2, Link, RefreshCw } from "lucide-react";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "../components/ui/select";
 import { Input } from "./ui/input";
+import { Button } from "./ui/button";
 import { getApiUrl } from "../utils/config";
 
 export default function DriveFolderInput({ value, onChange, onInputModeChange }) {
@@ -13,23 +14,43 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
   const [inputMode, setInputMode] = useState("dropdown"); // "dropdown" or "custom"
   const [userEnteredCustomLink, setUserEnteredCustomLink] = useState(false);
 
-  useEffect(() => {
-    const fetchFolders = async () => {
-      try {
-        const response = await fetch(`${getApiUrl()}/api/drive-folders`);
-        if (!response.ok) {
+  const fetchFolders = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      const accessToken = localStorage.getItem('google_access_token');
+      
+      if (!accessToken) {
+        setError('Please connect your Google Drive first');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch(`${getApiUrl()}/api/drive-folders?access_token=${encodeURIComponent(accessToken)}`);
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          setError('Please reconnect your Google Drive');
+        } else {
           throw new Error('Failed to fetch folders');
         }
-        const data = await response.json();
-        setFolders(data);
-      } catch (err) {
-        setError('Failed to load folders');
-        console.error('Error fetching folders:', err);
-      } finally {
         setLoading(false);
+        return;
       }
-    };
+      
+      const data = await response.json();
+      setFolders(data);
+      setError(''); // Clear any previous errors
+    } catch (err) {
+      setError('Failed to load folders from Google Drive');
+      console.error('Error fetching folders:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchFolders();
   }, []);
 
@@ -105,19 +126,59 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
       {/* Dropdown Mode */}
       {inputMode === "dropdown" && (
         <div className="space-y-2">
-          <div className="relative flex-1">
-            <FolderGit2 className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-            <Select value={selectedFolderId} onValueChange={handleFolderChange}>
-              <SelectTrigger className="pl-9">
-                <SelectValue placeholder="Select a folder..." />
-              </SelectTrigger>
-              <SelectContent>
-              {folders.map(folder => (
-                  <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
-              ))}
-              </SelectContent>
-            </Select>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <FolderGit2 className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
+              <Select value={selectedFolderId} onValueChange={handleFolderChange} disabled={loading || !!error}>
+                <SelectTrigger className="pl-9">
+                  <SelectValue placeholder={
+                    loading ? "Loading folders..." :
+                    error ? "Error loading folders" :
+                    folders.length === 0 ? "No folders found" :
+                    "Select a folder..."
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {folders.length > 0 ? (
+                    folders.map(folder => (
+                      <SelectItem key={folder.id} value={folder.id}>
+                        <div className="flex items-center">
+                          <FolderGit2 className="h-4 w-4 mr-2 text-blue-500" />
+                          <span>{folder.name}</span>
+                          {folder.isRoot && <span className="ml-2 text-xs text-gray-500">(Root)</span>}
+                        </div>
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="" disabled>
+                      {loading ? "Loading..." : error || "No folders available"}
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={fetchFolders}
+              disabled={loading}
+              className="shrink-0"
+              title="Refresh folders"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
           </div>
+          {error && (
+            <div className="text-sm text-red-600 mt-1">
+              {error}
+            </div>
+          )}
+          {!error && folders.length > 0 && (
+            <div className="text-xs text-green-600 mt-1">
+              Found {folders.length} folders in your Google Drive
+            </div>
+          )}
         </div>
       )}
 
@@ -138,10 +199,12 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
       )}
 
       <p className="text-xs text-gray-500 flex items-center gap-1">
-        <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+        <span className={`inline-block h-1.5 w-1.5 rounded-full ${
+          localStorage.getItem('google_access_token') ? 'bg-green-500' : 'bg-amber-500'
+        }`}></span>
         {localStorage.getItem('google_access_token') 
-          ? "Connected to Google Drive - any folder will work automatically"
-          : "Make sure the folder is shared with the service account email"
+          ? "Connected to Google Drive - all your folders are available"
+          : "Connect your Google Drive to see all your folders automatically"
         }
       </p>
     </div>

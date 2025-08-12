@@ -264,23 +264,60 @@ app.get('/api/dashboard/recent', async (req, res) => {
   }
 });
 
-// Drive folders endpoint
+// Drive folders endpoint - get all folders from connected Google account
 app.get('/api/drive-folders', async (req, res) => {
   try {
-    if (!drive) {
-      throw new Error('Google Drive API not initialized');
+    const accessToken = req.headers.authorization?.replace('Bearer ', '') || req.query.access_token;
+    
+    if (!accessToken) {
+      return res.status(401).json({ error: 'Access token required. Please connect your Google Drive first.' });
     }
 
-    const PARENT_FOLDER_ID = "1iDXkG-Ox2VoBToGX1BipoOjcYSMQQpVF";
-    const response = await drive.files.list({
-      q: `'${PARENT_FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder'`,
-      fields: 'files(id, name)',
+    let driveClient;
+    try {
+      driveClient = getDriveClient(accessToken);
+    } catch (error) {
+      return res.status(401).json({ error: 'Invalid access token. Please reconnect your Google Drive.' });
+    }
+
+    console.log('Fetching all folders from user\'s Google Drive...');
+    
+    // Fetch all folders accessible to the user, ordered by name
+    const response = await driveClient.files.list({
+      q: "mimeType='application/vnd.google-apps.folder' and trashed=false",
+      fields: 'files(id, name, parents, modifiedTime, webViewLink)',
+      orderBy: 'name',
+      pageSize: 100 // Get up to 100 folders
     });
 
-    res.json(response.data.files);
+    if (!response.data.files || response.data.files.length === 0) {
+      return res.json([]);
+    }
+
+    // Organize folders and add some useful metadata
+    const folders = response.data.files.map(folder => ({
+      id: folder.id,
+      name: folder.name,
+      webViewLink: folder.webViewLink,
+      modifiedTime: folder.modifiedTime,
+      isRoot: !folder.parents || folder.parents.length === 0,
+      // Create a shareable link format
+      shareLink: `https://drive.google.com/drive/folders/${folder.id}`
+    }));
+
+    console.log(`Found ${folders.length} folders in user's Google Drive`);
+    res.json(folders);
   } catch (error) {
-    console.error('Error fetching subfolders:', error);
-    res.status(500).json({ error: 'Failed to fetch subfolders' });
+    console.error('Error fetching user folders:', error);
+    
+    // Handle specific Google API errors
+    if (error.code === 401) {
+      res.status(401).json({ error: 'Authentication failed. Please reconnect your Google Drive.' });
+    } else if (error.code === 403) {
+      res.status(403).json({ error: 'Access denied. Please check your Google Drive permissions.' });
+    } else {
+      res.status(500).json({ error: 'Failed to fetch folders from Google Drive' });
+    }
   }
 });
 

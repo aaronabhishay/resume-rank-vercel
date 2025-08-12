@@ -139,7 +139,7 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
                     role="combobox"
                     aria-expanded={open}
                     className="w-full justify-between pl-9"
-                    disabled={loading || !!error}
+                    disabled={loading || (!!error && folders.length === 0)}
                   >
                     <FolderGit2 className="absolute left-3 h-4 w-4 text-gray-500" />
                     {selectedFolderId
@@ -210,6 +210,14 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
           {!error && folders.length > 0 && (
             <div className="text-xs text-green-600 mt-1">
               Found {folders.length} folders in your Google Drive
+            </div>
+          )}
+          
+          {/* Debug info - remove in production */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="text-xs text-gray-400 mt-1 p-2 bg-gray-50 rounded">
+              Debug: loading={loading.toString()}, error={error || 'none'}, folders={folders.length}, 
+              hasToken={!!localStorage.getItem('google_access_token')}
             </div>
           )}
         </div>

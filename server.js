@@ -7,6 +7,10 @@ const pdf = require('pdf-parse');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
+// Import configuration files for rate limiting
+const BATCH_CONFIG = require('./batch-config');
+const MODEL_CONFIG = require('./model-config');
+
 console.log('Dependencies loaded successfully');
 console.log('=== ENVIRONMENT VARIABLES ===');
 console.log('NODE_ENV:', process.env.NODE_ENV);
@@ -126,11 +130,43 @@ try {
     const { GoogleGenerativeAI } = require('@google/generative-ai');
     genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
     console.log('Gemini API initialized successfully');
+    console.log(`Using model: ${MODEL_CONFIG.model}`);
+    console.log(`Batch size: ${BATCH_CONFIG.batchSize}, Delay: ${BATCH_CONFIG.delayMs}ms`);
   } else {
     console.warn('Warning: GEMINI_API_KEY not found. Resume analysis will not work.');
   }
 } catch (error) {
   console.error('Error initializing Gemini API:', error);
+}
+
+// Rate limiting utilities
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Track API usage for rate limiting
+let apiCallCount = 0;
+let lastResetTime = Date.now();
+
+function resetApiCallCount() {
+  const now = Date.now();
+  const timeSinceReset = now - lastResetTime;
+  const oneDay = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+  
+  if (timeSinceReset >= oneDay) {
+    apiCallCount = 0;
+    lastResetTime = now;
+    console.log('Daily API call count reset');
+  }
+}
+
+function checkRateLimit() {
+  resetApiCallCount();
+  
+  if (apiCallCount >= BATCH_CONFIG.requestsPerDay) {
+    throw new Error(`Daily rate limit of ${BATCH_CONFIG.requestsPerDay} requests exceeded. Please wait until tomorrow or upgrade your plan.`);
+  }
+  
+  apiCallCount++;
+  console.log(`API call ${apiCallCount}/${BATCH_CONFIG.requestsPerDay} for today`);
 }
 
 // Hard code the parent folder ID
@@ -175,11 +211,9 @@ async function analyzeBatchResumes(resumeBatch, jobDescription, weights) {
   }
 
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-2.0-flash-exp",
+    model: MODEL_CONFIG.model,
     generationConfig: {
-      temperature: 0.2,
-      topP: 0.8,
-      topK: 40,
+      ...MODEL_CONFIG.generationConfig,
       maxOutputTokens: 4096,  // Increased for batch processing
     }
   });
@@ -219,7 +253,10 @@ async function analyzeBatchResumes(resumeBatch, jobDescription, weights) {
   `;
 
   try {
-    console.log(`Sending batch request to Gemini 2.0 Flash for ${resumeBatch.length} resumes...`);
+    // Check rate limits before making API call
+    checkRateLimit();
+    
+    console.log(`Sending batch request to ${MODEL_CONFIG.model} for ${resumeBatch.length} resumes...`);
     
     const result = await model.generateContent(batchPrompt);
     const response = await result.response;
@@ -258,6 +295,50 @@ async function analyzeBatchResumes(resumeBatch, jobDescription, weights) {
     
   } catch (error) {
     console.error('Error in batch analysis:', error);
+    
+    // Handle rate limit errors with retry
+    if (error.message && error.message.includes('429')) {
+      console.log(`Rate limit hit for batch, waiting ${BATCH_CONFIG.retryDelayMs / 1000} seconds before retrying...`);
+      await delay(BATCH_CONFIG.retryDelayMs);
+      
+      // Retry the batch analysis once
+      try {
+        console.log('Retrying batch analysis...');
+        const result = await model.generateContent(batchPrompt);
+        const response = await result.response;
+        const text = response.text();
+        
+        const jsonText = extractJsonFromText(text);
+        const batchAnalyses = JSON.parse(jsonText);
+        
+        if (!Array.isArray(batchAnalyses)) {
+          throw new Error('Expected JSON array response from batch analysis');
+        }
+        
+        return batchAnalyses.map((analysis, index) => {
+          const resumeData = resumeBatch[index];
+          if (!resumeData) {
+            throw new Error(`No resume data found for index ${index}`);
+          }
+          
+          const totalScore = Math.round(
+            (analysis.skillsMatch + analysis.experienceRelevance + 
+             analysis.educationFit + analysis.projectImpact) / 4 * 10
+          );
+          
+          return {
+            fileName: resumeData.fileName,
+            fileId: resumeData.fileId,
+            analysis: {
+              ...analysis,
+              totalScore
+            }
+          };
+        });
+      } catch (retryError) {
+        console.error('Retry failed:', retryError);
+      }
+    }
     
     // Fallback to individual analysis if batch fails
     console.log('Falling back to individual analysis...');
@@ -325,13 +406,8 @@ async function analyzeResume(resumeText, jobDescription, weights) {
   }
 
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-2.0-flash-exp",
-    generationConfig: {
-      temperature: 0.2,         // Lower temperature for more consistent output
-      topP: 0.8,
-      topK: 40,
-      maxOutputTokens: 2048,
-    }
+    model: MODEL_CONFIG.model,
+    generationConfig: MODEL_CONFIG.generationConfig
   });
 
   const prompt = `
@@ -389,9 +465,12 @@ async function analyzeResume(resumeText, jobDescription, weights) {
   `;
 
   try {
-    console.log('Sending request to Gemini 2.0 Flash...');
+    // Check rate limits before making API call
+    checkRateLimit();
+    
+    console.log(`Sending request to ${MODEL_CONFIG.model}...`);
     const result = await model.generateContent(prompt);
-    console.log('Received response from Gemini 1.5 Flash');
+    console.log(`Received response from ${MODEL_CONFIG.model}`);
     const response = await result.response;
     const text = response.text();
     console.log('Parsing response text...');
@@ -458,6 +537,153 @@ async function analyzeResume(resumeText, jobDescription, weights) {
   }
 }
 
+// Rate-limited batch processing function
+async function processResumesInBatches(
+  resumes,
+  jobDescription,
+  weights,
+  accessToken,
+  batchSize = BATCH_CONFIG.batchSize,
+  delayMs = BATCH_CONFIG.delayMs
+) {
+  const results = [];
+  
+  console.log(`Starting batch processing of ${resumes.length} resumes`);
+  console.log(`Batch size: ${batchSize}, Delay between batches: ${delayMs}ms`);
+
+  for (let i = 0; i < resumes.length; i += batchSize) {
+    const batch = resumes.slice(i, i + batchSize);
+    const currentBatch = Math.floor(i / batchSize) + 1;
+    const totalBatches = Math.ceil(resumes.length / batchSize);
+    const processedCount = Math.min(i + batchSize, resumes.length);
+
+    console.log(
+      `Processing batch ${currentBatch}/${totalBatches} (${batch.length} resumes) - Progress: ${processedCount}/${resumes.length} resumes`
+    );
+
+    // Process batch with individual resume handling
+    const batchPromises = batch.map(async (file) => {
+      try {
+        console.log(`Processing resume: ${file.name}`);
+        const resumeText = await downloadAndParseResume(file.id, accessToken);
+
+        // Analyze the resume against the job description
+        console.log(`Analyzing resume: ${file.name}`);
+        const analysis = await analyzeResume(
+          resumeText,
+          jobDescription,
+          weights
+        );
+
+        // Store the analysis result in Supabase
+        if (supabase) {
+          try {
+            const timestamp = new Date().toISOString();
+
+            // Prepare the record data
+            const recordData = {
+              job_description: jobDescription,
+              resume_name: file.name,
+              resume_id: file.id,
+              skills_match: analysis.skillsMatch,
+              experience_relevance: analysis.experienceRelevance,
+              education_fit: analysis.educationFit,
+              project_impact: analysis.projectImpact,
+              key_strengths: analysis.keyStrengths,
+              areas_for_improvement: analysis.areasForImprovement,
+              total_score: analysis.totalScore,
+              analysis_text: analysis.analysis,
+              email: analysis.email,
+              created_at: timestamp,
+            };
+
+            console.log(`Storing analysis for ${file.name} in Supabase...`);
+
+            // Try to insert the record with clear error logging
+            const { data, error } = await supabase
+              .from("resume_analyses")
+              .insert([recordData]);
+
+            if (error) {
+              console.error(`Supabase insertion error for ${file.name}:`, error.message);
+
+              if (error.code === "42501") {
+                console.error(
+                  "RLS Policy Error: You need to update the Row Level Security policy in Supabase"
+                );
+                console.error(
+                  "Go to Supabase dashboard > Authentication > Policies and either:"
+                );
+                console.error(
+                  "1. Disable RLS for the resume_analyses table (for development) OR"
+                );
+                console.error(
+                  "2. Create a policy that allows inserts without authentication"
+                );
+              }
+
+              analysis.stored = false;
+              analysis.storeError = error.message;
+            } else {
+              console.log(`Analysis for ${file.name} stored successfully`);
+              analysis.stored = true;
+            }
+          } catch (dbError) {
+            console.error(`Error with Supabase operation for ${file.name}:`, dbError);
+            analysis.stored = false;
+            analysis.storeError = dbError.message;
+          }
+        }
+
+        return {
+          fileName: file.name,
+          fileId: file.id,
+          analysis,
+        };
+      } catch (error) {
+        console.error(`Error processing resume ${file.name}:`, error);
+
+        // If it's a rate limit error, we should wait longer
+        if (error.message && error.message.includes("429")) {
+          console.log(
+            `Rate limit hit for ${file.name}, waiting ${
+              BATCH_CONFIG.retryDelayMs / 1000
+            } seconds before continuing...`
+          );
+          await delay(BATCH_CONFIG.retryDelayMs);
+        }
+
+        return {
+          fileName: file.name,
+          fileId: file.id,
+          error: error.message,
+        };
+      }
+    });
+
+    // Wait for current batch to complete
+    const batchResults = await Promise.all(batchPromises);
+    results.push(...batchResults);
+
+    // Add delay between batches (except for the last batch)
+    if (i + batchSize < resumes.length) {
+      console.log(`Waiting ${delayMs}ms before next batch...`);
+      await delay(delayMs);
+    }
+  }
+
+  console.log(`Batch processing completed. Processed ${results.length} resumes.`);
+  
+  // Log summary statistics
+  const successful = results.filter(r => r.analysis && !r.error).length;
+  const failed = results.filter(r => r.error).length;
+  const stored = results.filter(r => r.analysis && r.analysis.stored).length;
+  
+  console.log(`Summary: ${successful} successful, ${failed} failed, ${stored} stored in database`);
+
+  return results;
+}
+
 app.post('/api/analyze', async (req, res) => {
   try {
     const { jobDescription, driveFolderLink, experienceLevel, scoringLogic, weights, accessToken } = req.body;
@@ -491,114 +717,16 @@ app.post('/api/analyze', async (req, res) => {
       throw new Error('No PDF resumes found in the Drive folder');
     }
     
-    console.log(`Analyzing ${resumes.length} resumes using batch processing (2 resumes per batch)...`);
+    console.log(`Analyzing ${resumes.length} resumes using rate-limited batch processing...`);
+    console.log(`Configuration: ${BATCH_CONFIG.batchSize} resumes per batch, ${BATCH_CONFIG.delayMs}ms delay between batches`);
     
-    // First, download and parse all resumes
-    const resumeDataPromises = resumes.map(async (file) => {
-      try {
-        console.log(`Downloading resume: ${file.name}`);
-        const resumeText = await downloadAndParseResume(file.id, accessToken);
-        return {
-          fileName: file.name,
-          fileId: file.id,
-          resumeText
-        };
-      } catch (error) {
-        console.error(`Error downloading resume ${file.name}:`, error);
-        return {
-          fileName: file.name,
-          fileId: file.id,
-          error: error.message
-        };
-      }
-    });
-    
-    const resumeDataArray = await Promise.all(resumeDataPromises);
-    
-    // Filter out any failed downloads
-    const validResumeData = resumeDataArray.filter(data => !data.error);
-    const failedDownloads = resumeDataArray.filter(data => data.error);
-    
-    console.log(`Successfully downloaded ${validResumeData.length} resumes, ${failedDownloads.length} failed`);
-    
-    // Process resumes in batches of 2
-    const BATCH_SIZE = 2;
-    const batches = [];
-    for (let i = 0; i < validResumeData.length; i += BATCH_SIZE) {
-      batches.push(validResumeData.slice(i, i + BATCH_SIZE));
-    }
-    
-    console.log(`Created ${batches.length} batches for processing`);
-    
-    // Process each batch and collect results
-    const batchPromises = batches.map(async (batch, batchIndex) => {
-      try {
-        console.log(`Processing batch ${batchIndex + 1}/${batches.length} with ${batch.length} resumes`);
-        const batchResults = await analyzeBatchResumes(batch, jobDescription, weights);
-        
-        // Store each result in Supabase
-        const storedResults = await Promise.all(batchResults.map(async (result) => {
-          if (result.analysis && supabase) {
-            try {
-              const timestamp = new Date().toISOString();
-              
-              const recordData = {
-                job_description: jobDescription,
-                resume_name: result.fileName,
-                resume_id: result.fileId,
-                skills_match: result.analysis.skillsMatch,
-                experience_relevance: result.analysis.experienceRelevance,
-                education_fit: result.analysis.educationFit,
-                project_impact: result.analysis.projectImpact,
-                key_strengths: result.analysis.keyStrengths,
-                areas_for_improvement: result.analysis.areasForImprovement,
-                total_score: result.analysis.totalScore,
-                analysis_text: result.analysis.analysis,
-                email: result.analysis.email || result.analysis.candidateName || "No email found",
-                created_at: timestamp
-              };
-              
-              console.log(`Storing analysis for ${result.fileName} in Supabase...`);
-              
-              const { data, error } = await supabase
-                .from('resume_analyses')
-                .insert([recordData]);
-              
-              if (error) {
-                console.error(`Supabase error for ${result.fileName}:`, error.message);
-                result.analysis.stored = false;
-                result.analysis.storeError = error.message;
-              } else {
-                console.log(`Analysis for ${result.fileName} stored successfully`);
-                result.analysis.stored = true;
-              }
-            } catch (dbError) {
-              console.error(`Database error for ${result.fileName}:`, dbError);
-              result.analysis.stored = false;
-              result.analysis.storeError = dbError.message;
-            }
-          }
-          
-          return result;
-        }));
-        
-        return storedResults;
-      } catch (error) {
-        console.error(`Error processing batch ${batchIndex + 1}:`, error);
-        // Return error results for all resumes in this batch
-        return batch.map(resumeData => ({
-          fileName: resumeData.fileName,
-          fileId: resumeData.fileId,
-          error: error.message
-        }));
-      }
-    });
-    
-    // Wait for all batches to complete
-    const batchResults = await Promise.all(batchPromises);
-    
-    // Flatten results from all batches and include failed downloads
-    const results = [...batchResults.flat(), ...failedDownloads];
+    // Process resumes using the new rate-limited batch function
+    const results = await processResumesInBatches(
+      resumes,
+      jobDescription,
+      weights,
+      accessToken
+    );
     
     // Sort results by totalScore (descending)
     results.sort((a, b) => {

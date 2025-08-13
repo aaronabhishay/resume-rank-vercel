@@ -4,6 +4,10 @@ const pdf = require('pdf-parse');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
+// Import configuration files for rate limiting
+const BATCH_CONFIG = require('./batch-config');
+const MODEL_CONFIG = require('./model-config');
+
 console.log('=== VERCEL SERVERLESS FUNCTION STARTING ===');
 
 const app = express();
@@ -52,6 +56,8 @@ try {
     const { GoogleGenerativeAI } = require('@google/generative-ai');
     genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     console.log('Gemini API initialized');
+    console.log(`Using model: ${MODEL_CONFIG.model}`);
+    console.log(`Batch size: ${BATCH_CONFIG.batchSize}, Delay: ${BATCH_CONFIG.delayMs}ms`);
   }
 
   // Initialize Google Drive
@@ -68,6 +74,36 @@ try {
   }
 } catch (error) {
   console.error('Error initializing services:', error);
+}
+
+// Rate limiting utilities
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Track API usage for rate limiting
+let apiCallCount = 0;
+let lastResetTime = Date.now();
+
+function resetApiCallCount() {
+  const now = Date.now();
+  const timeSinceReset = now - lastResetTime;
+  const oneDay = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+  
+  if (timeSinceReset >= oneDay) {
+    apiCallCount = 0;
+    lastResetTime = now;
+    console.log('Daily API call count reset');
+  }
+}
+
+function checkRateLimit() {
+  resetApiCallCount();
+  
+  if (apiCallCount >= BATCH_CONFIG.requestsPerDay) {
+    throw new Error(`Daily rate limit of ${BATCH_CONFIG.requestsPerDay} requests exceeded. Please wait until tomorrow or upgrade your plan.`);
+  }
+  
+  apiCallCount++;
+  console.log(`API call ${apiCallCount}/${BATCH_CONFIG.requestsPerDay} for today`);
 }
 
 // Health check endpoint

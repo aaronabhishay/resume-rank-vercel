@@ -4,9 +4,36 @@ const pdf = require('pdf-parse');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-// Import configuration files for rate limiting
-const BATCH_CONFIG = require('./batch-config');
-const MODEL_CONFIG = require('./model-config');
+// Import configuration files for rate limiting with fallback
+let BATCH_CONFIG, MODEL_CONFIG;
+try {
+  BATCH_CONFIG = require('./batch-config');
+  MODEL_CONFIG = require('./model-config');
+  console.log(`Configuration loaded: Model ${MODEL_CONFIG.model}, Batch size ${BATCH_CONFIG.batchSize}`);
+} catch (error) {
+  console.warn('Configuration files not found, using defaults:', error.message);
+  // Default configuration for fallback
+  BATCH_CONFIG = {
+    batchSize: 2,
+    delayMs: 3000,
+    maxRetries: 3,
+    retryDelayMs: 10000,
+    requestsPerDay: 180,
+    verbose: true,
+    showProgress: true,
+    continueOnError: true,
+    savePartialResults: true,
+  };
+  MODEL_CONFIG = {
+    model: "gemini-2.0-flash",
+    generationConfig: {
+      temperature: 0.2,
+      topP: 0.8,
+      topK: 40,
+      maxOutputTokens: 2048,
+    }
+  };
+}
 
 console.log('=== VERCEL SERVERLESS FUNCTION STARTING ===');
 
@@ -442,11 +469,9 @@ async function analyzeBatchResumes(resumeBatch, jobDescription, weights) {
   }
 
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-2.0-flash-exp",
+    model: MODEL_CONFIG.model,
     generationConfig: {
-      temperature: 0.2,
-      topP: 0.8,
-      topK: 40,
+      ...MODEL_CONFIG.generationConfig,
       maxOutputTokens: 4096,  // Increased for batch processing
     }
   });
@@ -592,13 +617,8 @@ async function analyzeResume(resumeText, jobDescription, weights) {
   }
 
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-2.0-flash-exp",
-    generationConfig: {
-      temperature: 0.2,
-      topP: 0.8,
-      topK: 40,
-      maxOutputTokens: 2048,
-    }
+    model: MODEL_CONFIG.model,
+    generationConfig: MODEL_CONFIG.generationConfig
   });
 
   const prompt = `

@@ -2,16 +2,16 @@
 // Modify these values to adjust processing behavior
 
 module.exports = {
-  // Batch processing settings
-  batchSize: 2, // Number of resumes to process simultaneously (1-3 recommended)
-  delayMs: 3000, // Delay between batches in milliseconds (2000-5000 recommended)
+  // Batch processing settings - OPTIMIZED for stability and efficiency
+  batchSize: 3, // Process THREE resumes per API call (safer for API stability)
+  delayMs: 5000, // 5 second delay between each batch (12 per minute max = under 15 RPM limit)
 
   // Retry settings
   maxRetries: 3, // Maximum retries for failed requests
-  retryDelayMs: 10000, // Wait time before retrying after rate limit (in milliseconds)
+  retryDelayMs: 60000, // Wait 60 seconds before retrying after rate limit (in milliseconds)
 
-  // Rate limit settings
-  requestsPerMinute: 10, // Conservative limit to avoid hitting API limits
+  // Rate limit settings - MATCH GEMINI 2.0 FLASH FREE TIER EXACTLY
+  requestsPerMinute: 12, // Ultra conservative - under 15 RPM limit
   requestsPerDay: 180, // Conservative daily limit for Gemini 2.0 Flash (200 total, leaving buffer)
 
   // Logging

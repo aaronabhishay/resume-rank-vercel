@@ -15,5 +15,10 @@ GOOGLE_REDIRECT_URI=https://your-domain.vercel.app/auth/google/callback
 N8N_CALENDAR_WEBHOOK_URL=your_n8n_calendar_webhook_url_here
 N8N_EMAIL_WEBHOOK_URL=your_n8n_email_webhook_url_here
 
+# Razorpay Configuration
+RAZORPAY_KEY_ID=your_razorpay_key_id_here
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret_here
+RAZORPAY_WEBHOOK_SECRET=your_razorpay_webhook_secret_here
+
 # Node Environment
 NODE_ENV=production 

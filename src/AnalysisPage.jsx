@@ -11,6 +11,7 @@ import JobDescriptionInput from "./components/JobDescriptionInput";
 import DriveFolderInput from "./components/DriveFolderInput";
 import ResultsDisplay from "./components/ResultsDisplay";
 import GoogleAuth from "./components/GoogleAuth";
+import ProgressBar from "./components/ProgressBar";
 import { supabase } from "./supabaseClient";
 import { useNavigate } from "react-router-dom";
 import { getApiUrl } from "./utils/config";
@@ -41,6 +42,18 @@ export default function AnalysisPage() {
   });
   const [canSave, setCanSave] = useState(false);
   const [googleAccessToken, setGoogleAccessToken] = useState(null);
+  
+  // Progress tracking state
+  const [showProgress, setShowProgress] = useState(false);
+  const [progressData, setProgressData] = useState({
+    current: 0,
+    total: 0,
+    currentBatch: 0,
+    totalBatches: 0,
+    currentResume: "",
+    status: "Processing resumes..."
+  });
+  const [sessionId, setSessionId] = useState(null);
 
   const navigate = useNavigate();
   const [userEmail, setUserEmail] = useState("");
@@ -121,9 +134,53 @@ export default function AnalysisPage() {
       alert("Please provide all required information");
       return;
     }
+    
+    // Generate session ID for progress tracking
+    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setSessionId(newSessionId);
+    setShowProgress(true);
+    setProgressData({
+      current: 0,
+      total: 0,
+      currentBatch: 0,
+      totalBatches: 0,
+      currentResume: "",
+      status: "Starting analysis..."
+    });
+    
     setTab("candidate-results");
     setJobTitle(jobDescription.split('\n')[0] || "Job Title");
     setCanSave(true);
+    
+    // Set up progress tracking
+    const eventSource = new EventSource(`${BACKEND_URL}/api/progress/stream/${newSessionId}`);
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'progress') {
+          setProgressData({
+            current: data.current || 0,
+            total: data.total || 0,
+            currentBatch: data.currentBatch || 0,
+            totalBatches: data.totalBatches || 0,
+            currentResume: data.currentResume || "",
+            status: data.status || "Processing resumes..."
+          });
+        } else if (data.type === 'complete') {
+          eventSource.close();
+          setShowProgress(false);
+        }
+      } catch (error) {
+        console.error('Error parsing progress data:', error);
+      }
+    };
+    
+    eventSource.onerror = (error) => {
+      console.error('Progress stream error:', error);
+      eventSource.close();
+    };
+    
     setTimeout(async () => {
       setLoading(true);
       try {
@@ -136,15 +193,20 @@ export default function AnalysisPage() {
             experienceLevel,
             scoringLogic,
             weights,
-            accessToken: googleAccessToken
+            accessToken: googleAccessToken,
+            sessionId: newSessionId
           }),
         });
         const data = await response.json();
         setResults(data);
+        eventSource.close();
+        setShowProgress(false);
       } catch (error) {
         console.error("Error analyzing resumes:", error);
         alert("Error analyzing resumes. Please try again.");
         setTab("job-analysis");
+        eventSource.close();
+        setShowProgress(false);
       } finally {
         setLoading(false);
       }
@@ -408,6 +470,17 @@ export default function AnalysisPage() {
           </div>
         </div>
       )}
+      
+      {/* Progress Bar */}
+      <ProgressBar
+        isVisible={showProgress}
+        current={progressData.current}
+        total={progressData.total}
+        currentBatch={progressData.currentBatch}
+        totalBatches={progressData.totalBatches}
+        currentResume={progressData.currentResume}
+        status={progressData.status}
+      />
     </div>
   );
 } 

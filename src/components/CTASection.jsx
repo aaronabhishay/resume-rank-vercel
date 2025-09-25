@@ -94,6 +94,14 @@ const CTASection = () => {
           >
             Sign Up
           </Button>
+          <Button 
+            variant="secondary" 
+            size="lg" 
+            className="h-12 px-8 font-semibold"
+            onClick={() => navigate('/pricing')}
+          >
+            View Pricing
+          </Button>
         </motion.div>
         <motion.p 
           className="text-sm text-muted-foreground mb-16 font-medium"

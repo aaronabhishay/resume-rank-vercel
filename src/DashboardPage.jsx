@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { Plus, FileText, Users, TrendingUp, Clock, ChevronRight } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { useNavigate } from "react-router-dom";
+import SubscriptionManager from "./components/Dashboard/SubscriptionManager";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -157,8 +158,9 @@ export default function DashboardPage() {
 
         {/* Main Content */}
         <Tabs defaultValue="overview" className="space-y-8">
-          <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
+          <TabsList className="grid w-full grid-cols-4 lg:w-[500px]">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="subscription">Subscription</TabsTrigger>
             <TabsTrigger value="recent">Recent</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
@@ -247,6 +249,10 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="subscription" className="space-y-6">
+            <SubscriptionManager />
           </TabsContent>
 
           <TabsContent value="recent" className="space-y-6">

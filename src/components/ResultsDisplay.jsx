@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
+import ResultsTable from "./ResultsTable";
 
 // Add status constants
 const CANDIDATE_STATUS = {
@@ -348,8 +349,6 @@ function RejectionEmailsModal({ isOpen, onClose, unselectedCandidates, onStatusU
 }
 
 export default function ResultsDisplay({ results, jobTitle, canSave = true }) {
-  const [viewMode, setViewMode] = useState("table");
-  const [showSummary, setShowSummary] = useState(false);
   const [selectedCandidates, setSelectedCandidates] = useState([]);
   const [showSchedulingModal, setShowSchedulingModal] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -604,10 +603,6 @@ The Hiring Team
     </div>
   );
 
-  const handleViewModeChange = (mode) => {
-    setViewMode(mode);
-    setShowSummary(false); // Hide summary when changing view mode
-  };
 
   const handleSelectTopCandidates = () => {
     const num = parseInt(numCandidatesToSelect);
@@ -618,6 +613,7 @@ The Hiring Team
       .slice(0, num);
     
     setSelectedCandidates(topCandidates);
+    setNumCandidatesToSelect(""); // Clear the input after selection
   };
 
   // Export to XLSX handler
@@ -655,7 +651,9 @@ The Hiring Team
       )}
       <div className="mb-6">
         <h2 className="text-lg font-bold text-foreground mb-2">{jobTitle || "Job Title"}</h2>
-        <p className="text-sm text-muted-foreground mt-2">Found {resultsArray.length} candidates</p>
+        <p className="text-sm text-muted-foreground mt-2">
+          Found {resultsArray.length} candidates
+        </p>
       </div>
 
       {/* Select Top Candidates Input */}
@@ -681,78 +679,6 @@ The Hiring Team
         </div>
       </div>
 
-      {/* Controls */}
-      <div className="flex justify-end items-center mb-6 gap-4">
-        <div className="flex rounded-md shadow-sm bg-muted/30">
-          <Button
-            onClick={() => handleViewModeChange("table")}
-            className={`rounded-l-md ${viewMode === "table" ? "bg-background text-foreground" : "bg-muted text-muted-foreground"}`}
-            size="sm"
-            variant={viewMode === "table" ? "glass" : "outline"}
-          >
-            <FaTable className="mr-2" />
-            Table
-          </Button>
-          <Button
-            onClick={() => handleViewModeChange("cards")}
-            className={`rounded-r-md ${viewMode === "cards" ? "bg-background text-foreground" : "bg-muted text-muted-foreground"}`}
-            size="sm"
-            variant={viewMode === "cards" ? "glass" : "outline"}
-          >
-            <FaThLarge className="mr-2" />
-            Cards
-          </Button>
-        </div>
-        <Button
-          onClick={() => setShowSummary(!showSummary)}
-          className="font-semibold"
-          size="sm"
-          variant="outline"
-        >
-          <FaClipboardList className="mr-2" />
-          Summary
-        </Button>
-      </div>
-
-      {/* Summary Section */}
-      {showSummary && summary && (
-        <div className="mb-6 bg-muted/30 shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-foreground mb-4">Analysis Summary</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground mb-2">Top Candidate</h4>
-              <p className="text-lg font-medium text-foreground">{summary.topCandidate}</p>
-              <p className="text-sm text-muted-foreground">Score: {summary.topScore}/10</p>
-            </div>
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground mb-2">Overall Statistics</h4>
-              <p className="text-sm text-foreground">Average Score: {summary.averageScore}/10</p>
-              <p className="text-sm text-foreground">Total Candidates: {summary.candidateCount}</p>
-            </div>
-            <div className="md:col-span-2">
-              <h4 className="text-sm font-medium text-muted-foreground mb-2">Category Comparisons</h4>
-              <div className="space-y-4">
-                {summary.comparisons.map((comparison, index) => (
-                  <div key={index} className="bg-background p-4 rounded-lg">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-foreground">{comparison.category}</span>
-                      <span className="text-sm text-muted-foreground">
-                        Top: {comparison.topScore}/10 | Avg: {comparison.avgScore}/10
-                      </span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div
-                        className="bg-primary h-2 rounded-full"
-                        style={{ width: `${(comparison.topScore / 10) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Action Buttons */}
       {selectedCandidates.length > 0 && (
@@ -781,230 +707,17 @@ The Hiring Team
         </div>
       )}
 
-      {/* Results Display */}
-      {viewMode === "table" ? (
-        <>
-          <div className="overflow-x-auto rounded-xl border border-border bg-background">
-            <table className="min-w-full divide-y divide-border bg-background text-foreground">
-              <thead className="bg-muted/40">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">#</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Select
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Candidate
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Skills
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Experience
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Education
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Projects
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Overall
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {resultsArray.map((candidate, index) => (
-                  <tr key={index} className={candidate.error ? "bg-destructive/10" : index % 2 === 0 ? "bg-card" : "bg-muted/30"}>
-                    <td className="px-6 py-4 whitespace-nowrap text-muted-foreground font-mono">{index + 1}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        checked={selectedCandidates.some(c => c.fileName === candidate.fileName)}
-                        onChange={() => handleCandidateSelect(candidate)}
-                        className="h-4 w-4 text-primary focus:ring-primary border-border rounded"
-                      />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <StatusBadge status={getCandidateStatus(candidate)} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-foreground">
-                        {candidate.analysis?.candidateName || candidate.fileName}
-                      </div>
-                    </td>
-                    {candidate.error ? (
-                      <td colSpan="6" className="px-6 py-4 whitespace-nowrap text-sm text-destructive">
-                        {candidate.error}
-                      </td>
-                    ) : <>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-foreground">{candidate.analysis.skillsMatch}/10</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-foreground">{candidate.analysis.experienceRelevance}/10</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-foreground">{candidate.analysis.educationFit}/10</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-foreground">{candidate.analysis.projectImpact}/10</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-foreground">{candidate.analysis.totalScore}/100</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                        <Button
-                          onClick={() => handleViewDetails(candidate)}
-                          variant="link"
-                          size="sm"
-                          className="text-primary"
-                        >
-                          View Details
-                        </Button>
-                      </td>
-                    </>}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="flex justify-end mt-4">
-            <Button
-              onClick={handleExportXLSX}
-              className="font-semibold"
-              size="sm"
-              variant="glass"
-            >
-              Save as XLSX
-            </Button>
-          </div>
-        </>
-      ) : (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {resultsArray.map((candidate, index) => (
-            <div
-              key={index}
-              className={`bg-card overflow-hidden rounded-lg ${candidate.error ? "border border-destructive/50" : ""}`}
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-medium text-foreground">
-                      {candidate.analysis?.candidateName || candidate.fileName}
-                    </h3>
-                    <StatusBadge status={getCandidateStatus(candidate)} />
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={selectedCandidates.some(c => c.fileName === candidate.fileName)}
-                    onChange={() => handleCandidateSelect(candidate)}
-                    className="h-4 w-4 text-primary focus:ring-primary border-border rounded"
-                  />
-                </div>
-                {candidate.error ? (
-                  <div className="mt-4 text-sm text-destructive">{candidate.error}</div>
-                ) : <>
-                  <div className="space-y-4">
-                    {/* Overview Section */}
-                    <div className="bg-muted/30 p-4 rounded-lg">
-                      <h4 className="text-sm font-medium text-foreground mb-2">Overview</h4>
-                      <div className="space-y-2">
-                        {candidate.analysis?.email && (
-                          <p className="text-sm text-muted-foreground">
-                            <span className="font-medium">Email:</span> {candidate.analysis.email}
-                          </p>
-                        )}
-                        {candidate.analysis?.keyStrengths && candidate.analysis.keyStrengths.length > 0 && (
-                          <div>
-                            <p className="text-sm font-medium text-foreground">Key Strengths:</p>
-                            <ul className="list-disc list-inside text-sm text-muted-foreground">
-                              {candidate.analysis.keyStrengths.slice(0, 2).map((strength, i) => (
-                                <li key={i}>{strength}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Scores Section */}
-                    <div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Skills Match</span>
-                        <span className="text-foreground">{candidate.analysis.skillsMatch}/10</span>
-                      </div>
-                      <div className="mt-1 w-full bg-muted rounded-full h-2">
-                        <div
-                          className="bg-primary h-2 rounded-full"
-                          style={{ width: `${(candidate.analysis.skillsMatch / 10) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Experience</span>
-                        <span className="text-foreground">{candidate.analysis.experienceRelevance}/10</span>
-                      </div>
-                      <div className="mt-1 w-full bg-muted rounded-full h-2">
-                        <div
-                          className="bg-primary h-2 rounded-full"
-                          style={{ width: `${(candidate.analysis.experienceRelevance / 10) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Education</span>
-                        <span className="text-foreground">{candidate.analysis.educationFit}/10</span>
-                      </div>
-                      <div className="mt-1 w-full bg-muted rounded-full h-2">
-                        <div
-                          className="bg-primary h-2 rounded-full"
-                          style={{ width: `${(candidate.analysis.educationFit / 10) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Projects</span>
-                        <span className="text-foreground">{candidate.analysis.projectImpact}/10</span>
-                      </div>
-                      <div className="mt-1 w-full bg-muted rounded-full h-2">
-                        <div
-                          className="bg-primary h-2 rounded-full"
-                          style={{ width: `${(candidate.analysis.projectImpact / 10) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div className="pt-4 border-t border-border">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-foreground">Overall Score</span>
-                        <span className="text-lg font-bold text-primary">{candidate.analysis.totalScore}</span>
-                      </div>
-                    </div>
-                  </div>
-                </>}
-              </div>
-              <div className="bg-muted/30 px-6 py-3">
-                <Button
-                  onClick={() => handleViewDetails(candidate)}
-                  variant="link"
-                  size="sm"
-                  className="text-primary"
-                >
-                  View Details
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Results Display using TanStack Table */}
+      <ResultsTable
+        results={results}
+        jobTitle={jobTitle}
+        canSave={canSave}
+        onCandidateSelect={handleCandidateSelect}
+        selectedCandidates={selectedCandidates}
+        onViewDetails={handleViewDetails}
+        candidateStatuses={candidateStatuses}
+        onStatusUpdate={handleRejectionStatusUpdate}
+      />
 
       {/* Candidate Details Modal */}
       {showDetailsModal && selectedCandidate && (

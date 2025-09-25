@@ -10,6 +10,7 @@ require('dotenv').config();
 // Import configuration files for rate limiting
 const BATCH_CONFIG = require('./batch-config');
 const MODEL_CONFIG = require('./model-config');
+const RateLimiter = require('./rate-limiter');
 
 console.log('Dependencies loaded successfully');
 console.log('=== ENVIRONMENT VARIABLES ===');
@@ -142,32 +143,12 @@ try {
 // Rate limiting utilities
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Track API usage for rate limiting
-let apiCallCount = 0;
-let lastResetTime = Date.now();
-
-function resetApiCallCount() {
-  const now = Date.now();
-  const timeSinceReset = now - lastResetTime;
-  const oneDay = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-  
-  if (timeSinceReset >= oneDay) {
-    apiCallCount = 0;
-    lastResetTime = now;
-    console.log('Daily API call count reset');
-  }
-}
-
-function checkRateLimit() {
-  resetApiCallCount();
-  
-  if (apiCallCount >= BATCH_CONFIG.requestsPerDay) {
-    throw new Error(`Daily rate limit of ${BATCH_CONFIG.requestsPerDay} requests exceeded. Please wait until tomorrow or upgrade your plan.`);
-  }
-  
-  apiCallCount++;
-  console.log(`API call ${apiCallCount}/${BATCH_CONFIG.requestsPerDay} for today`);
-}
+// Initialize advanced rate limiter
+const rateLimiter = new RateLimiter({
+  requestsPerMinute: BATCH_CONFIG.requestsPerMinute,
+  requestsPerDay: BATCH_CONFIG.requestsPerDay,
+  retryDelayMs: BATCH_CONFIG.retryDelayMs
+});
 
 // Hard code the parent folder ID
 const PARENT_FOLDER_ID = "1iDXkG-Ox2VoBToGX1BipoOjcYSMQQpVF"; // Parent folder containing Data Analyst and Software Engineer subfolders
@@ -180,11 +161,33 @@ async function extractFolderId(url) {
 
 async function getResumesFromDrive(folderId, accessToken = null) {
   const driveClient = getDriveClient(accessToken);
-  const response = await driveClient.files.list({
-    q: `'${folderId}' in parents and mimeType='application/pdf'`,
-    fields: 'files(id, name)',
-  });
-  return response.data.files;
+  
+  let allFiles = [];
+  let nextPageToken = null;
+  
+  do {
+    const response = await driveClient.files.list({
+      q: `'${folderId}' in parents and mimeType='application/pdf'`,
+      fields: 'nextPageToken, files(id, name)',
+      pageSize: 1000, // Maximum allowed by Google Drive API
+      pageToken: nextPageToken
+    });
+    
+    if (response.data.files && response.data.files.length > 0) {
+      allFiles = allFiles.concat(response.data.files);
+    }
+    
+    nextPageToken = response.data.nextPageToken;
+    
+    // Safety check to prevent infinite loops (limit to 10 pages = 10,000 files max)
+    if (allFiles.length >= 10000) {
+      console.log('Reached maximum file limit of 10,000 files');
+      break;
+    }
+  } while (nextPageToken);
+  
+  console.log(`Retrieved ${allFiles.length} PDF files from Drive folder`);
+  return allFiles;
 }
 
 async function downloadAndParseResume(fileId, accessToken = null) {
@@ -253,8 +256,8 @@ async function analyzeBatchResumes(resumeBatch, jobDescription, weights) {
   `;
 
   try {
-    // Check rate limits before making API call
-    checkRateLimit();
+    // Enforce rate limits before making API call
+    await rateLimiter.enforceRateLimit();
     
     console.log(`Sending batch request to ${MODEL_CONFIG.model} for ${resumeBatch.length} resumes...`);
     
@@ -465,8 +468,8 @@ async function analyzeResume(resumeText, jobDescription, weights) {
   `;
 
   try {
-    // Check rate limits before making API call
-    checkRateLimit();
+    // Enforce rate limits before making API call
+    await rateLimiter.enforceRateLimit();
     
     console.log(`Sending request to ${MODEL_CONFIG.model}...`);
     const result = await model.generateContent(prompt);
@@ -537,6 +540,270 @@ async function analyzeResume(resumeText, jobDescription, weights) {
   }
 }
 
+// New function to analyze multiple resumes in a single API call with fallback
+async function analyzeMultipleResumes(resumeBatch, jobDescription, weights, retryCount = 0) {
+  if (!genAI) {
+    throw new Error('Gemini AI not initialized');
+  }
+
+  const model = genAI.getGenerativeModel({ 
+    model: MODEL_CONFIG.model,
+    generationConfig: MODEL_CONFIG.generationConfig
+  });
+
+  // If batch is too large and we've had errors, split it
+  if (resumeBatch.length > 2 && retryCount > 0) {
+    console.log(`Splitting batch of ${resumeBatch.length} resumes due to previous errors...`);
+    const results = [];
+    
+    // Process in smaller sub-batches
+    for (let i = 0; i < resumeBatch.length; i += 2) {
+      const subBatch = resumeBatch.slice(i, i + 2);
+      console.log(`Processing sub-batch of ${subBatch.length} resumes...`);
+      
+      try {
+        const subResults = await analyzeMultipleResumes(subBatch, jobDescription, weights, 0);
+        results.push(...subResults);
+        
+        // Small delay between sub-batches
+        if (i + 2 < resumeBatch.length) {
+          await delay(2000);
+        }
+      } catch (error) {
+        console.error(`Sub-batch failed, falling back to individual processing:`, error);
+        
+        // Fallback to individual processing for this sub-batch
+        for (const resume of subBatch) {
+          try {
+            const individualResult = await analyzeResume(resume.resumeText, jobDescription, weights);
+            results.push({
+              resumeIndex: results.length + 1,
+              fileName: resume.fileName,
+              fileId: resume.fileId,
+              candidateName: individualResult.candidateName,
+              email: individualResult.email,
+              skillsMatch: individualResult.skillsMatch,
+              experienceRelevance: individualResult.experienceRelevance,
+              educationFit: individualResult.educationFit,
+              projectImpact: individualResult.projectImpact,
+              keyStrengths: individualResult.keyStrengths,
+              areasForImprovement: individualResult.areasForImprovement,
+              analysis: individualResult.analysis,
+              totalScore: individualResult.totalScore
+            });
+          } catch (individualError) {
+            console.error(`Individual processing failed for ${resume.fileName}:`, individualError);
+            results.push({
+              resumeIndex: results.length + 1,
+              fileName: resume.fileName,
+              fileId: resume.fileId,
+              error: individualError.message
+            });
+          }
+        }
+      }
+    }
+    
+    return results;
+  }
+
+  // Create a batch prompt for multiple resumes with text optimization
+  const resumeSections = resumeBatch.map((resume, index) => {
+    // Truncate very long resumes to prevent token overflow (max ~2000 chars per resume)
+    let optimizedText = resume.resumeText;
+    if (optimizedText.length > 2000) {
+      console.log(`Truncating long resume ${resume.fileName} from ${optimizedText.length} to 2000 chars`);
+      optimizedText = optimizedText.substring(0, 2000) + "... [truncated]";
+    }
+    
+    return `[RESUME_${index + 1}]\nCandidate: ${resume.fileName}\n${optimizedText}\n[/RESUME_${index + 1}]`;
+  }).join('\n\n');
+
+  const prompt = `
+    You are a professional resume analyzer. Analyze these ${resumeBatch.length} resumes against the job description and provide detailed scores for each candidate.
+
+    JOB DESCRIPTION:
+    ${jobDescription}
+
+    RESUMES TO ANALYZE:
+    ${resumeSections}
+
+    For each resume, extract the candidate's name and email address, then provide scores (0-10) for:
+    1. Skills Match: How well do the candidate's technical and soft skills align with the job requirements?
+    2. Experience Relevance: How relevant is their work experience to the role?
+    3. Education Fit: How well does their educational background match the position?
+    4. Project Impact: How impactful and relevant are their projects to the role?
+
+    Also provide:
+    - Key strengths (max 5 points)
+    - Areas for improvement (max 3 points)
+    - Brief analysis (2-3 sentences)
+
+    IMPORTANT: Respond with a raw JSON object containing an array of results, not wrapped in markdown code blocks. The JSON should start with { and end with }:
+    {
+      "results": [
+        {
+          "resumeIndex": 1,
+          "fileName": "resume1.pdf",
+          "candidateName": "extracted name or 'No name found'",
+          "email": "extracted email or 'No email found'",
+          "skillsMatch": number (0-10),
+          "experienceRelevance": number (0-10),
+          "educationFit": number (0-10),
+          "projectImpact": number (0-10),
+          "keyStrengths": ["strength1", "strength2", ...],
+          "areasForImprovement": ["area1", "area2", ...],
+          "analysis": "brief analysis text"
+        },
+        ...
+      ]
+    }
+  `;
+
+  // Check prompt size to prevent oversized requests
+  const promptSize = prompt.length;
+  const estimatedTokens = Math.ceil(promptSize / 4); // Rough estimation: 4 chars per token
+  console.log(`Prompt size: ${promptSize} chars, estimated tokens: ${estimatedTokens}`);
+  
+  if (estimatedTokens > 30000) { // Conservative limit for batch processing
+    console.warn(`Prompt too large (${estimatedTokens} tokens), splitting batch...`);
+    return analyzeMultipleResumes(resumeBatch, jobDescription, weights, retryCount + 1);
+  }
+
+  try {
+    // Enforce rate limits before making API call
+    await rateLimiter.enforceRateLimit();
+    
+    console.log(`Sending batch request to ${MODEL_CONFIG.model} for ${resumeBatch.length} resumes...`);
+    const result = await model.generateContent(prompt);
+    console.log(`Received batch response from ${MODEL_CONFIG.model}`);
+    const response = await result.response;
+    const text = response.text();
+    console.log('Parsing batch response text...');
+    console.log('Response text preview:', text.substring(0, 200) + '...');
+    
+    // Clean the response text to ensure it's valid JSON
+    let cleanedText = text;
+    
+    // Remove markdown code blocks if present
+    if (cleanedText.includes("```json")) {
+      cleanedText = cleanedText.replace(/```json\s*/, "");
+      cleanedText = cleanedText.replace(/\s*```/, "");
+      console.log('Removed JSON code blocks');
+    } else if (cleanedText.includes("```")) {
+      cleanedText = cleanedText.replace(/```\s*/, "");
+      cleanedText = cleanedText.replace(/\s*```/, "");
+      console.log('Removed generic code blocks');
+    }
+    
+    // Find the first { and last } to extract JSON
+    const firstBrace = cleanedText.indexOf('{');
+    const lastBrace = cleanedText.lastIndexOf('}');
+    
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      cleanedText = cleanedText.substring(firstBrace, lastBrace + 1);
+      console.log('Extracted JSON between braces');
+    } else {
+      console.error('Could not find JSON braces in the response');
+      console.log('Full response text:', text);
+      throw new Error('Failed to extract JSON from Gemini response - no valid JSON structure found');
+    }
+    
+    console.log('Cleaned JSON text:', cleanedText.substring(0, 200) + '...');
+    
+    try {
+      const parsedJson = JSON.parse(cleanedText);
+      console.log('Successfully parsed batch JSON response');
+      
+      if (!parsedJson.results || !Array.isArray(parsedJson.results)) {
+        throw new Error('Invalid response format: expected results array');
+      }
+      
+      // Process each result and calculate total scores
+      const processedResults = parsedJson.results.map((analysis, index) => {
+        // Use weights from parameter or default
+        const skillsWeight = weights?.skills ?? 0.35;
+        const experienceWeight = weights?.experience ?? 0.35;
+        const educationWeight = weights?.education ?? 0.15;
+        const projectsWeight = weights?.projects ?? 0.15;
+        
+        const totalScore = (
+          (analysis.skillsMatch * skillsWeight) +
+          (analysis.experienceRelevance * experienceWeight) +
+          (analysis.educationFit * educationWeight) +
+          (analysis.projectImpact * projectsWeight)
+        ) * 10; // Convert to 0-100 scale
+        
+        // Round to 1 decimal place
+        analysis.totalScore = Math.round(totalScore * 10) / 10;
+        
+        // Ensure we have the fileName from our batch
+        if (index < resumeBatch.length) {
+          analysis.fileName = resumeBatch[index].fileName;
+          analysis.fileId = resumeBatch[index].fileId;
+        }
+        
+        return analysis;
+      });
+      
+      return processedResults;
+    } catch (parseError) {
+      console.error('Error parsing batch JSON response:', parseError);
+      console.log('Full cleaned response text:', cleanedText);
+      throw new Error(`Failed to parse Gemini API batch response as JSON: ${parseError.message}`);
+    }
+  } catch (error) {
+    console.error('Error analyzing resume batch:', error);
+    
+    // Handle specific error types with retries
+    if (error.message.includes('503') || error.message.includes('overloaded') || error.message.includes('Service Unavailable')) {
+      if (retryCount < 3) {
+        const backoffDelay = Math.pow(2, retryCount) * 5000; // Exponential backoff: 5s, 10s, 20s
+        console.log(`API overloaded (503), retrying in ${backoffDelay/1000} seconds... (attempt ${retryCount + 1}/3)`);
+        await delay(backoffDelay);
+        return analyzeMultipleResumes(resumeBatch, jobDescription, weights, retryCount + 1);
+      } else {
+        console.log('Max retries reached for 503 errors, falling back to individual processing...');
+        
+        // Fallback to individual processing
+        const results = [];
+        for (const resume of resumeBatch) {
+          try {
+            await delay(2000); // Small delay between individual calls
+            const individualResult = await analyzeResume(resume.resumeText, jobDescription, weights);
+            results.push({
+              resumeIndex: results.length + 1,
+              fileName: resume.fileName,
+              fileId: resume.fileId,
+              candidateName: individualResult.candidateName,
+              email: individualResult.email,
+              skillsMatch: individualResult.skillsMatch,
+              experienceRelevance: individualResult.experienceRelevance,
+              educationFit: individualResult.educationFit,
+              projectImpact: individualResult.projectImpact,
+              keyStrengths: individualResult.keyStrengths,
+              areasForImprovement: individualResult.areasForImprovement,
+              analysis: individualResult.analysis,
+              totalScore: individualResult.totalScore
+            });
+          } catch (individualError) {
+            console.error(`Individual processing failed for ${resume.fileName}:`, individualError);
+            results.push({
+              resumeIndex: results.length + 1,
+              fileName: resume.fileName,
+              fileId: resume.fileId,
+              error: individualError.message
+            });
+          }
+        }
+        return results;
+      }
+    }
+    
+    throw error;
+  }
+}
+
 // Rate-limited batch processing function
 async function processResumesInBatches(
   resumes,
@@ -544,12 +811,25 @@ async function processResumesInBatches(
   weights,
   accessToken,
   batchSize = BATCH_CONFIG.batchSize,
-  delayMs = BATCH_CONFIG.delayMs
+  delayMs = BATCH_CONFIG.delayMs,
+  sessionId = null
 ) {
   const results = [];
   
   console.log(`Starting batch processing of ${resumes.length} resumes`);
   console.log(`Batch size: ${batchSize}, Delay between batches: ${delayMs}ms`);
+
+  // Send initial progress
+  if (sessionId) {
+    sendProgressUpdate(sessionId, {
+      type: 'progress',
+      current: 0,
+      total: resumes.length,
+      currentBatch: 0,
+      totalBatches: Math.ceil(resumes.length / batchSize),
+      status: 'Starting analysis...'
+    });
+  }
 
   for (let i = 0; i < resumes.length; i += batchSize) {
     const batch = resumes.slice(i, i + batchSize);
@@ -561,19 +841,96 @@ async function processResumesInBatches(
       `Processing batch ${currentBatch}/${totalBatches} (${batch.length} resumes) - Progress: ${processedCount}/${resumes.length} resumes`
     );
 
-    // Process batch with individual resume handling
-    const batchPromises = batch.map(async (file) => {
-      try {
-        console.log(`Processing resume: ${file.name}`);
-        const resumeText = await downloadAndParseResume(file.id, accessToken);
+    // Send batch start progress
+    if (sessionId) {
+      sendProgressUpdate(sessionId, {
+        type: 'progress',
+        current: i,
+        total: resumes.length,
+        currentBatch: currentBatch,
+        totalBatches: totalBatches,
+        status: `Processing batch ${currentBatch} of ${totalBatches}...`
+      });
+    }
 
-        // Analyze the resume against the job description
-        console.log(`Analyzing resume: ${file.name}`);
-        const analysis = await analyzeResume(
-          resumeText,
-          jobDescription,
-          weights
-        );
+    // Download all resumes in the batch first
+    const batchData = [];
+    for (const file of batch) {
+      try {
+        console.log(`Downloading resume: ${file.name}`);
+        
+        // Send individual resume progress
+        if (sessionId) {
+          sendProgressUpdate(sessionId, {
+            type: 'progress',
+            current: i + batchData.length,
+            total: resumes.length,
+            currentBatch: currentBatch,
+            totalBatches: totalBatches,
+            currentResume: file.name,
+            status: `Downloading resume: ${file.name}`
+          });
+        }
+        
+        const resumeText = await downloadAndParseResume(file.id, accessToken);
+        batchData.push({
+          fileName: file.name,
+          fileId: file.id,
+          resumeText: resumeText
+        });
+      } catch (error) {
+        console.error(`Error downloading resume ${file.name}:`, error);
+        batchData.push({
+          fileName: file.name,
+          fileId: file.id,
+          error: error.message
+        });
+      }
+    }
+
+    // Filter out failed downloads for batch processing
+    const validBatchData = batchData.filter(data => !data.error);
+    const failedDownloads = batchData.filter(data => data.error);
+    
+    if (failedDownloads.length > 0) {
+      console.log(`${failedDownloads.length} resumes failed to download in this batch`);
+    }
+
+    if (validBatchData.length === 0) {
+      console.warn('No valid resumes to process in this batch');
+      return failedDownloads.map(failed => ({
+        fileName: failed.fileName,
+        fileId: failed.fileId,
+        error: failed.error
+      }));
+    }
+
+    // Process the entire batch in a single API call
+    console.log(`Analyzing batch of ${validBatchData.length} resumes in single API call...`);
+    
+    // Send analysis start progress
+    if (sessionId) {
+      sendProgressUpdate(sessionId, {
+        type: 'progress',
+        current: i,
+        total: resumes.length,
+        currentBatch: currentBatch,
+        totalBatches: totalBatches,
+        status: `Analyzing batch ${currentBatch} of ${totalBatches}...`
+      });
+    }
+    
+    let batchResults = [];
+    
+    try {
+      const batchAnalysis = await analyzeMultipleResumes(
+        validBatchData,
+        jobDescription,
+        weights
+      );
+      
+      // Process each result for database storage
+      const batchPromises = batchAnalysis.map(async (analysis) => {
 
         // Store the analysis result in Supabase
         if (supabase) {
@@ -583,8 +940,8 @@ async function processResumesInBatches(
             // Prepare the record data
             const recordData = {
               job_description: jobDescription,
-              resume_name: file.name,
-              resume_id: file.id,
+              resume_name: analysis.fileName,
+              resume_id: analysis.fileId,
               skills_match: analysis.skillsMatch,
               experience_relevance: analysis.experienceRelevance,
               education_fit: analysis.educationFit,
@@ -597,7 +954,7 @@ async function processResumesInBatches(
               created_at: timestamp,
             };
 
-            console.log(`Storing analysis for ${file.name} in Supabase...`);
+            console.log(`Storing analysis for ${analysis.fileName} in Supabase...`);
 
             // Try to insert the record with clear error logging
             const { data, error } = await supabase
@@ -605,7 +962,7 @@ async function processResumesInBatches(
               .insert([recordData]);
 
             if (error) {
-              console.error(`Supabase insertion error for ${file.name}:`, error.message);
+              console.error(`Supabase insertion error for ${analysis.fileName}:`, error.message);
 
               if (error.code === "42501") {
                 console.error(
@@ -625,45 +982,71 @@ async function processResumesInBatches(
               analysis.stored = false;
               analysis.storeError = error.message;
             } else {
-              console.log(`Analysis for ${file.name} stored successfully`);
+              console.log(`Analysis for ${analysis.fileName} stored successfully`);
               analysis.stored = true;
             }
           } catch (dbError) {
-            console.error(`Error with Supabase operation for ${file.name}:`, dbError);
+            console.error(`Error with Supabase operation for ${analysis.fileName}:`, dbError);
             analysis.stored = false;
             analysis.storeError = dbError.message;
           }
         }
 
         return {
-          fileName: file.name,
-          fileId: file.id,
+          fileName: analysis.fileName,
+          fileId: analysis.fileId,
           analysis,
         };
-      } catch (error) {
-        console.error(`Error processing resume ${file.name}:`, error);
+      });
 
-        // If it's a rate limit error, we should wait longer
-        if (error.message && error.message.includes("429")) {
-          console.log(
-            `Rate limit hit for ${file.name}, waiting ${
-              BATCH_CONFIG.retryDelayMs / 1000
-            } seconds before continuing...`
-          );
-          await delay(BATCH_CONFIG.retryDelayMs);
-        }
+      // Wait for all database operations to complete
+      batchResults = await Promise.all(batchPromises);
+      
+    } catch (error) {
+      console.error(`Error analyzing batch of resumes:`, error);
 
-        return {
-          fileName: file.name,
-          fileId: file.id,
-          error: error.message,
-        };
+      // Handle rate limiting specifically
+      if (error.message && error.message.includes("rate limit") || error.message.includes("429")) {
+        console.log(
+          `Rate limit hit for batch, waiting ${
+            BATCH_CONFIG.retryDelayMs / 1000
+          } seconds before retrying...`
+        );
+        await delay(BATCH_CONFIG.retryDelayMs);
       }
-    });
 
-    // Wait for current batch to complete
-    const batchResults = await Promise.all(batchPromises);
-    results.push(...batchResults);
+      // Return error results for all resumes in this batch that couldn't be processed
+      batchResults = validBatchData.map(data => ({
+        fileName: data.fileName,
+        fileId: data.fileId,
+        error: error.message,
+      }));
+    }
+
+    // Combine successful batch results with failed downloads
+    const allResults = [
+      ...batchResults,
+      ...failedDownloads.map(failed => ({
+        fileName: failed.fileName,
+        fileId: failed.fileId,
+        error: failed.error
+      }))
+    ];
+
+    // Add all results from this batch to the main results array
+    results.push(...allResults);
+
+    // Send batch completion progress
+    if (sessionId) {
+      sendProgressUpdate(sessionId, {
+        type: 'progress',
+        current: Math.min(i + batchSize, resumes.length),
+        total: resumes.length,
+        currentBatch: currentBatch,
+        totalBatches: totalBatches,
+        status: `Completed batch ${currentBatch} of ${totalBatches}`
+      });
+    }
 
     // Add delay between batches (except for the last batch)
     if (i + batchSize < resumes.length) {
@@ -673,6 +1056,18 @@ async function processResumesInBatches(
   }
 
   console.log(`Batch processing completed. Processed ${results.length} resumes.`);
+  
+  // Send final progress update
+  if (sessionId) {
+    sendProgressUpdate(sessionId, {
+      type: 'progress',
+      current: resumes.length,
+      total: resumes.length,
+      currentBatch: Math.ceil(resumes.length / batchSize),
+      totalBatches: Math.ceil(resumes.length / batchSize),
+      status: 'Analysis complete!'
+    });
+  }
   
   // Log summary statistics
   const successful = results.filter(r => r.analysis && !r.error).length;
@@ -686,7 +1081,7 @@ async function processResumesInBatches(
 
 app.post('/api/analyze', async (req, res) => {
   try {
-    const { jobDescription, driveFolderLink, experienceLevel, scoringLogic, weights, accessToken } = req.body;
+    const { jobDescription, driveFolderLink, experienceLevel, scoringLogic, weights, accessToken, sessionId } = req.body;
     console.log('Received analysis request with job description length:', jobDescription?.length);
     console.log('Drive folder link:', driveFolderLink);
     console.log('Using OAuth access token:', accessToken ? 'Yes' : 'No');
@@ -725,7 +1120,10 @@ app.post('/api/analyze', async (req, res) => {
       resumes,
       jobDescription,
       weights,
-      accessToken
+      accessToken,
+      BATCH_CONFIG.batchSize,
+      BATCH_CONFIG.delayMs,
+      sessionId
     );
     
     // Sort results by totalScore (descending)
@@ -743,6 +1141,12 @@ app.post('/api/analyze', async (req, res) => {
     });
     
     console.log('Analysis complete, sending response');
+    
+    // Close progress stream
+    if (sessionId) {
+      closeProgressStream(sessionId);
+    }
+    
     res.json({ results });
   } catch (error) {
     console.error('Error in analyze endpoint:', error);
@@ -1183,6 +1587,16 @@ if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
     console.log(`Server running on port ${PORT}`);
   });
 }
+
+// Load payment, webhook, and progress routes
+const paymentRoutes = require('./api/payment');
+const webhookRoutes = require('./api/webhook');
+const { router: progressRoutes, sendProgressUpdate, closeProgressStream } = require('./api/progress');
+
+// Mount the routes
+app.use('/api/payment', paymentRoutes);
+app.use('/api/webhook', webhookRoutes);
+app.use('/api/progress', progressRoutes);
 
 // Export for Vercel serverless functions
 module.exports = app; 

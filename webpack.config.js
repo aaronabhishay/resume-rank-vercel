@@ -40,6 +40,7 @@ module.exports = {
     new webpack.DefinePlugin({
       'process.env.SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL),
       'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.SUPABASE_ANON_KEY),
+      'process.env.REACT_APP_RAZORPAY_KEY_ID': JSON.stringify(process.env.REACT_APP_RAZORPAY_KEY_ID),
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
     }),
     new CopyWebpackPlugin({

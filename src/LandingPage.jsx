@@ -5,6 +5,7 @@ import SolutionSection from "./components/SolutionSection";
 import HowItWorksSection from "./components/HowItWorksSection";
 import ResultsSection from "./components/ResultsSection";
 import TestimonialsSection from "./components/TestimonialsSection";
+import PricingSection from "./components/Pricing/PricingSection";
 import CTASection from "./components/CTASection";
 
 export default function LandingPage() {
@@ -16,6 +17,7 @@ export default function LandingPage() {
       <HowItWorksSection />
       <ResultsSection />
       <TestimonialsSection />
+      <PricingSection />
       <CTASection />
     </div>
   );

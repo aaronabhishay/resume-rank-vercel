@@ -14,6 +14,7 @@ import DashboardPage from "./DashboardPage";
 import AnalysisPage from "./AnalysisPage";
 import SavedJobsPage from "./SavedJobsPage";
 import AuthPage from "./components/Auth/AuthPage";
+import PricingPage from "./components/Pricing/PricingPage";
 import { supabase } from "./supabaseClient";
 import { getApiUrl } from "./utils/config";
 
@@ -114,6 +115,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/pricing" element={<PricingPage />} />
       <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       <Route path="/analysis" element={<ProtectedRoute><AnalysisPage /></ProtectedRoute>} />
       <Route path="/saved-jobs" element={<ProtectedRoute><SavedJobsPage /></ProtectedRoute>} />

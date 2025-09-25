@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const pdf = require('pdf-parse');
 const { createClient } = require('@supabase/supabase-js');
+const paymentRoutes = require('./payment');
+const webhookRoutes = require('./webhook');
 require('dotenv').config();
 
 // Import configuration files for rate limiting with fallback
@@ -12,13 +14,14 @@ try {
   console.log(`Configuration loaded: Model ${MODEL_CONFIG.model}, Batch size ${BATCH_CONFIG.batchSize}`);
 } catch (error) {
   console.warn('Configuration files not found, using defaults:', error.message);
-  // Default configuration for fallback
+  // Default configuration for fallback - ULTRA CONSERVATIVE for 15 RPM limit
   BATCH_CONFIG = {
-    batchSize: 2,
-    delayMs: 3000,
+    batchSize: 1, // Process ONE resume at a time to avoid overwhelming API
+    delayMs: 5000, // 5 second delay between each resume (12 per minute max = under 15 RPM limit)
     maxRetries: 3,
-    retryDelayMs: 10000,
-    requestsPerDay: 180,
+    retryDelayMs: 60000, // Wait 60 seconds before retrying after rate limit
+    requestsPerDay: 180, // Conservative daily limit for Gemini 2.0 Flash (200 total, leaving buffer)
+    requestsPerMinute: 12, // Ultra conservative - under 15 RPM limit
     verbose: true,
     showProgress: true,
     continueOnError: true,
@@ -56,6 +59,12 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+// Payment routes
+app.use('/api/payment', paymentRoutes);
+
+// Webhook routes (no CORS for webhooks)
+app.use('/api/webhook', webhookRoutes);
 
 // Initialize services
 let supabase, oauth2Client, genAI, drive;
@@ -438,11 +447,33 @@ async function extractFolderId(url) {
 
 async function getResumesFromDrive(folderId, accessToken = null) {
   const driveClient = getDriveClient(accessToken);
-  const response = await driveClient.files.list({
-    q: `'${folderId}' in parents and mimeType='application/pdf'`,
-    fields: 'files(id, name)',
-  });
-  return response.data.files;
+  
+  let allFiles = [];
+  let nextPageToken = null;
+  
+  do {
+    const response = await driveClient.files.list({
+      q: `'${folderId}' in parents and mimeType='application/pdf'`,
+      fields: 'nextPageToken, files(id, name)',
+      pageSize: 1000, // Maximum allowed by Google Drive API
+      pageToken: nextPageToken
+    });
+    
+    if (response.data.files && response.data.files.length > 0) {
+      allFiles = allFiles.concat(response.data.files);
+    }
+    
+    nextPageToken = response.data.nextPageToken;
+    
+    // Safety check to prevent infinite loops (limit to 10 pages = 10,000 files max)
+    if (allFiles.length >= 10000) {
+      console.log('Reached maximum file limit of 10,000 files');
+      break;
+    }
+  } while (nextPageToken);
+  
+  console.log(`Retrieved ${allFiles.length} PDF files from Drive folder`);
+  return allFiles;
 }
 
 async function downloadAndParseResume(fileId, accessToken = null) {
@@ -809,8 +840,8 @@ app.post('/api/analyze', async (req, res) => {
     
     console.log(`Successfully downloaded ${validResumeData.length} resumes, ${failedDownloads.length} failed`);
     
-    // Process resumes in batches of 2
-    const BATCH_SIZE = 2;
+    // Process resumes in batches of 3 for API stability
+    const BATCH_SIZE = 3;
     const batches = [];
     for (let i = 0; i < validResumeData.length; i += BATCH_SIZE) {
       batches.push(validResumeData.slice(i, i + BATCH_SIZE));

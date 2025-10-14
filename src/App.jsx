@@ -15,6 +15,9 @@ import AnalysisPage from "./AnalysisPage";
 import SavedJobsPage from "./SavedJobsPage";
 import AuthPage from "./components/Auth/AuthPage";
 import PricingPage from "./components/Pricing/PricingPage";
+import HomePage from "./pages/HomePage";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 import { supabase } from "./supabaseClient";
 import { getApiUrl } from "./utils/config";
 
@@ -115,6 +118,9 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/home" element={<HomePage />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<TermsOfService />} />
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       <Route path="/analysis" element={<ProtectedRoute><AnalysisPage /></ProtectedRoute>} />

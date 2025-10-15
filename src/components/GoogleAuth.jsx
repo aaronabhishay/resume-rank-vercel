@@ -13,12 +13,40 @@ export default function GoogleAuth({ onAuthSuccess, onAuthError }) {
   useEffect(() => {
     const accessToken = localStorage.getItem('google_access_token');
     if (accessToken) {
-      setIsAuthenticated(true);
-      if (onAuthSuccess) {
-        onAuthSuccess(accessToken);
-      }
+      // Check if token is still valid by making a test request
+      checkTokenValidity(accessToken);
     }
   }, [onAuthSuccess]);
+
+  const checkTokenValidity = async (accessToken) => {
+    try {
+      const response = await fetch(`${getApiUrl()}/api/drive-folders?access_token=${accessToken}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+      
+      if (response.ok) {
+        setIsAuthenticated(true);
+        if (onAuthSuccess) {
+          onAuthSuccess(accessToken);
+        }
+      } else if (response.status === 401) {
+        // Token expired, clear it
+        localStorage.removeItem('google_access_token');
+        localStorage.removeItem('google_refresh_token');
+        setIsAuthenticated(false);
+        setError('Your Google Drive access has expired. Please reconnect.');
+      }
+    } catch (error) {
+      console.error('Error checking token validity:', error);
+      // On error, assume token is invalid
+      localStorage.removeItem('google_access_token');
+      localStorage.removeItem('google_refresh_token');
+      setIsAuthenticated(false);
+    }
+  };
 
   const handleGoogleAuth = async () => {
     setIsLoading(true);

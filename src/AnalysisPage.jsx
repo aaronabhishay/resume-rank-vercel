@@ -184,6 +184,9 @@ export default function AnalysisPage() {
     setTimeout(async () => {
       setLoading(true);
       try {
+        // Get refresh token from localStorage
+        const googleRefreshToken = localStorage.getItem('google_refresh_token');
+        
         const response = await fetch(`${BACKEND_URL}/api/analyze`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -194,6 +197,7 @@ export default function AnalysisPage() {
             scoringLogic,
             weights,
             accessToken: googleAccessToken,
+            refreshToken: googleRefreshToken,
             sessionId: newSessionId
           }),
         });

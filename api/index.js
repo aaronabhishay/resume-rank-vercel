@@ -340,6 +340,7 @@ app.get('/api/dashboard/recent', async (req, res) => {
 app.get('/api/drive-folders', async (req, res) => {
   try {
     const accessToken = req.headers.authorization?.replace('Bearer ', '') || req.query.access_token;
+    const refreshToken = req.query.refresh_token;
     
     if (!accessToken) {
       return res.status(401).json({ error: 'Access token required. Please connect your Google Drive first.' });
@@ -347,7 +348,7 @@ app.get('/api/drive-folders', async (req, res) => {
 
     let driveClient;
     try {
-      driveClient = getDriveClient(accessToken);
+      driveClient = getDriveClient(accessToken, refreshToken);
     } catch (error) {
       return res.status(401).json({ error: 'Invalid access token. Please reconnect your Google Drive.' });
     }
@@ -397,18 +398,21 @@ app.get('/api/drive-folders', async (req, res) => {
 
     console.log(`Found ${folders.length} folders in user's Google Drive`);
     res.json(folders);
-  } catch (error) {
-    console.error('Error fetching user folders:', error);
-    
-    // Handle specific Google API errors
-    if (error.code === 401) {
-      res.status(401).json({ error: 'Authentication failed. Please reconnect your Google Drive.' });
-    } else if (error.code === 403) {
-      res.status(403).json({ error: 'Access denied. Please check your Google Drive permissions.' });
-    } else {
-      res.status(500).json({ error: 'Failed to fetch folders from Google Drive' });
+    } catch (error) {
+      console.error('Error fetching user folders:', error);
+      
+      // Handle specific Google API errors
+      if (error.code === 401 || error.message?.includes('Invalid Credentials') || error.message?.includes('invalid_token')) {
+        res.status(401).json({ 
+          error: 'Authentication failed. Your Google Drive access has expired. Please reconnect your Google Drive.',
+          code: 'TOKEN_EXPIRED'
+        });
+      } else if (error.code === 403) {
+        res.status(403).json({ error: 'Access denied. Please check your Google Drive permissions.' });
+      } else {
+        res.status(500).json({ error: 'Failed to fetch folders from Google Drive' });
+      }
     }
-  }
 });
 
 // Helper function to format time ago
@@ -424,13 +428,36 @@ function formatTimeAgo(dateString) {
 }
 
 // Helper function to get Drive client with user's OAuth tokens
-function getDriveClient(accessToken) {
+function getDriveClient(accessToken, refreshToken = null) {
   const { google } = require('googleapis');
   
   if (accessToken) {
-    // Use user's OAuth tokens
-    oauth2Client.setCredentials({ access_token: accessToken });
-    return google.drive({ version: 'v3', auth: oauth2Client });
+    // Create a new OAuth2Client instance for this user's tokens
+    const userOAuth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI || 'https://resume-rank-vercel.vercel.app/auth/google/callback'
+    );
+    
+    // Set the user's credentials
+    userOAuth2Client.setCredentials({
+      access_token: accessToken,
+      refresh_token: refreshToken
+    });
+    
+    // Add automatic token refresh
+    userOAuth2Client.on('tokens', (tokens) => {
+      if (tokens.refresh_token) {
+        // Store the new refresh token if provided
+        console.log('New refresh token received');
+      }
+      if (tokens.access_token) {
+        // Store the new access token
+        console.log('New access token received');
+      }
+    });
+    
+    return google.drive({ version: 'v3', auth: userOAuth2Client });
   } else if (drive) {
     // Fallback to service account
     return drive;
@@ -445,8 +472,8 @@ async function extractFolderId(url) {
   return match ? match[1] : null;
 }
 
-async function getResumesFromDrive(folderId, accessToken = null) {
-  const driveClient = getDriveClient(accessToken);
+async function getResumesFromDrive(folderId, accessToken = null, refreshToken = null) {
+  const driveClient = getDriveClient(accessToken, refreshToken);
   
   let allFiles = [];
   let nextPageToken = null;
@@ -476,8 +503,8 @@ async function getResumesFromDrive(folderId, accessToken = null) {
   return allFiles;
 }
 
-async function downloadAndParseResume(fileId, accessToken = null) {
-  const driveClient = getDriveClient(accessToken);
+async function downloadAndParseResume(fileId, accessToken = null, refreshToken = null) {
+  const driveClient = getDriveClient(accessToken, refreshToken);
   try {
     const response = await driveClient.files.get(
       { fileId, alt: 'media' },
@@ -779,7 +806,7 @@ async function analyzeResume(resumeText, jobDescription, weights) {
 // Analyze endpoint
 app.post('/api/analyze', async (req, res) => {
   try {
-    const { jobDescription, driveFolderLink, experienceLevel, scoringLogic, weights, accessToken } = req.body;
+    const { jobDescription, driveFolderLink, experienceLevel, scoringLogic, weights, accessToken, refreshToken } = req.body;
     console.log('Received analysis request with job description length:', jobDescription?.length);
     console.log('Drive folder link:', driveFolderLink);
     console.log('Using OAuth access token:', accessToken ? 'Yes' : 'No');
@@ -799,11 +826,19 @@ app.post('/api/analyze', async (req, res) => {
     
     let resumes = [];
     try {
-      resumes = await getResumesFromDrive(folderId, accessToken);
+      resumes = await getResumesFromDrive(folderId, accessToken, refreshToken);
       console.log(`Found ${resumes.length} resumes in the folder`);
     } catch (error) {
       console.error('Error getting resumes from Drive:', error);
-      throw new Error('Error accessing Google Drive: ' + error.message);
+      
+      // Handle specific Google API errors
+      if (error.code === 401 || error.message?.includes('Invalid Credentials') || error.message?.includes('invalid_token')) {
+        throw new Error('Google Drive access has expired. Please reconnect your Google Drive.');
+      } else if (error.code === 403) {
+        throw new Error('Access denied to Google Drive. Please check your permissions.');
+      } else {
+        throw new Error('Error accessing Google Drive: ' + error.message);
+      }
     }
     
     if (resumes.length === 0) {
@@ -816,7 +851,7 @@ app.post('/api/analyze', async (req, res) => {
     const resumeDataPromises = resumes.map(async (file) => {
       try {
         console.log(`Downloading resume: ${file.name}`);
-        const resumeText = await downloadAndParseResume(file.id, accessToken);
+        const resumeText = await downloadAndParseResume(file.id, accessToken, refreshToken);
         return {
           fileName: file.name,
           fileId: file.id,

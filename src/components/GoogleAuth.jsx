@@ -20,7 +20,18 @@ export default function GoogleAuth({ onAuthSuccess, onAuthError }) {
 
   const checkTokenValidity = async (accessToken) => {
     try {
-      const response = await fetch(`${getApiUrl()}/api/drive-folders?access_token=${accessToken}`, {
+      const refreshToken = localStorage.getItem('google_refresh_token');
+      
+      // Build query parameters
+      const params = new URLSearchParams({
+        access_token: accessToken
+      });
+      
+      if (refreshToken) {
+        params.append('refresh_token', refreshToken);
+      }
+
+      const response = await fetch(`${getApiUrl()}/api/drive-folders?${params.toString()}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`

@@ -342,14 +342,20 @@ app.get('/api/drive-folders', async (req, res) => {
     const accessToken = req.headers.authorization?.replace('Bearer ', '') || req.query.access_token;
     const refreshToken = req.query.refresh_token;
     
+    console.log('Drive folders request - Access token provided:', !!accessToken);
+    console.log('Drive folders request - Refresh token provided:', !!refreshToken);
+    
     if (!accessToken) {
       return res.status(401).json({ error: 'Access token required. Please connect your Google Drive first.' });
     }
 
     let driveClient;
     try {
+      console.log('Creating Drive client with OAuth tokens...');
       driveClient = getDriveClient(accessToken, refreshToken);
+      console.log('Drive client created successfully');
     } catch (error) {
+      console.error('Error creating Drive client:', error);
       return res.status(401).json({ error: 'Invalid access token. Please reconnect your Google Drive.' });
     }
 
@@ -431,7 +437,16 @@ function formatTimeAgo(dateString) {
 function getDriveClient(accessToken, refreshToken = null) {
   const { google } = require('googleapis');
   
+  console.log('getDriveClient called with accessToken:', !!accessToken, 'refreshToken:', !!refreshToken);
+  
   if (accessToken) {
+    console.log('Using OAuth tokens for Drive client');
+    
+    // Validate that we have the required OAuth credentials
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      throw new Error('Google OAuth credentials not configured. Please check your environment variables.');
+    }
+    
     // Create a new OAuth2Client instance for this user's tokens
     const userOAuth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
@@ -457,12 +472,16 @@ function getDriveClient(accessToken, refreshToken = null) {
       }
     });
     
+    console.log('OAuth2Client configured with user tokens');
     return google.drive({ version: 'v3', auth: userOAuth2Client });
-  } else if (drive) {
-    // Fallback to service account
-    return drive;
   } else {
-    throw new Error('No Google Drive authentication available');
+    // Only use service account if no OAuth token is provided
+    if (drive) {
+      console.log('Using service account as fallback (no OAuth token provided)');
+      return drive;
+    } else {
+      throw new Error('No Google Drive authentication available. Please connect your Google Drive first.');
+    }
   }
 }
 

@@ -21,6 +21,7 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
     
     try {
       const accessToken = localStorage.getItem('google_access_token');
+      const refreshToken = localStorage.getItem('google_refresh_token');
       
       if (!accessToken) {
         setError('Please connect your Google Drive first');
@@ -28,7 +29,16 @@ export default function DriveFolderInput({ value, onChange, onInputModeChange })
         return;
       }
 
-      const response = await fetch(`${getApiUrl()}/api/drive-folders?access_token=${encodeURIComponent(accessToken)}`);
+      // Build query parameters
+      const params = new URLSearchParams({
+        access_token: accessToken
+      });
+      
+      if (refreshToken) {
+        params.append('refresh_token', refreshToken);
+      }
+
+      const response = await fetch(`${getApiUrl()}/api/drive-folders?${params.toString()}`);
       
       if (!response.ok) {
         if (response.status === 401) {

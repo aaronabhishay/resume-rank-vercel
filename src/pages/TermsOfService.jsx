@@ -110,7 +110,6 @@ export default function TermsOfService() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. Billing and Payments</h2>
               <p className="text-gray-700 mb-4">
-                <strong>Free Tier:</strong> Basic features are available at no cost with usage limits.
               </p>
               <p className="text-gray-700 mb-4">
                 <strong>Paid Plans:</strong> Premium features require a subscription. All fees are non-refundable unless otherwise stated. We may change pricing with 30 days' notice.
@@ -146,7 +145,7 @@ export default function TermsOfService() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">11. Governing Law and Disputes</h2>
               <p className="text-gray-700 mb-4">
-                These terms are governed by the laws of [Your Jurisdiction]. Any disputes will be resolved through binding arbitration or in the courts of [Your Jurisdiction].
+                These terms are governed by the laws of India. Any disputes will be resolved through binding arbitration or in the courts of [Your Jurisdiction].
               </p>
             </section>
 
